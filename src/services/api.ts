@@ -1,5 +1,111 @@
-import { SupportedLanguage, ExecutionResult } from '../types';
+import { SupportedLanguage, ExecutionResult, TerminalLogEntry } from '../types';
 
+export interface StartTerminalResponse {
+  sessionId: string;
+  status: 'running' | 'compile_error';
+  compilationTimeMs?: number;
+  stderr?: string;
+  exitCode?: number;
+}
+
+// Start an interactive terminal execution session
+export async function startTerminalSession(
+  language: SupportedLanguage,
+  code: string
+): Promise<StartTerminalResponse> {
+  const response = await fetch('/api/terminal/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language, code }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Server terminal error (${response.status})`);
+  }
+
+  return response.json();
+}
+
+// Send interactive user input to the running program stdin
+export async function sendTerminalInput(sessionId: string, input: string): Promise<boolean> {
+  const response = await fetch('/api/terminal/input', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId, input }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to send input');
+  }
+
+  const data = await response.json();
+  return Boolean(data.success);
+}
+
+// Stop / Terminate running terminal session
+export async function stopTerminalSession(sessionId: string): Promise<boolean> {
+  const response = await fetch('/api/terminal/stop', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const data = await response.json();
+  return Boolean(data.success);
+}
+
+// Subscribe to SSE Terminal event stream
+export function subscribeToTerminalStream(
+  sessionId: string,
+  callbacks: {
+    onData: (log: TerminalLogEntry) => void;
+    onExit: (exitInfo: { exitCode: number; status: string; executionTimeMs: number }) => void;
+    onError: (err: any) => void;
+  }
+): () => void {
+  const eventSource = new EventSource(`/api/terminal/stream?sessionId=${encodeURIComponent(sessionId)}`);
+
+  eventSource.addEventListener('data', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      callbacks.onData({
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type: data.type || 'stdout',
+        text: data.text || '',
+        timestamp: new Date(data.timestamp || Date.now()).toLocaleTimeString(),
+      });
+    } catch (e) {
+      console.warn('Failed to parse SSE data event:', e);
+    }
+  });
+
+  eventSource.addEventListener('exit', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      callbacks.onExit(data);
+      eventSource.close();
+    } catch (e) {
+      console.warn('Failed to parse SSE exit event:', e);
+    }
+  });
+
+  eventSource.onerror = (err) => {
+    callbacks.onError(err);
+    eventSource.close();
+  };
+
+  return () => {
+    eventSource.close();
+  };
+}
+
+// Legacy fallback batch execution
 export async function executeCode(
   language: SupportedLanguage,
   code: string,
@@ -27,28 +133,4 @@ export async function executeCode(
     totalTimeMs: data.totalTimeMs,
     timestamp: new Date().toLocaleTimeString(),
   };
-}
-
-export async function exportToGoogleDocs(params: {
-  accessToken: string;
-  title: string;
-  language: SupportedLanguage;
-  code: string;
-  stdin?: string;
-  output?: string;
-  stderr?: string;
-  executionTimeMs?: number;
-}): Promise<{ documentId: string; documentUrl: string; title: string }> {
-  const response = await fetch('/api/docs/export', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Google Docs export failed (${response.status})`);
-  }
-
-  return response.json();
 }

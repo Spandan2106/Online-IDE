@@ -14,15 +14,21 @@ export interface LanguageConfig {
 }
 
 export type ThemeMode = 'dark' | 'bright';
+export type LayoutOrientation = 'horizontal' | 'vertical';
 
 export interface CodeTemplate {
   id: string;
   title: string;
-  category: 'Basics' | 'Input/Output' | 'Algorithms' | 'Data Structures' | 'OOP';
+  category: 'Basics' | 'Interactive I/O' | 'Algorithms' | 'Data Structures' | 'OOP';
   description: string;
   code: string;
-  stdin?: string;
-  sampleStdin?: string;
+}
+
+export interface TerminalLogEntry {
+  id: string;
+  type: 'stdout' | 'stderr' | 'stdin' | 'system';
+  text: string;
+  timestamp: string;
 }
 
 export interface ExecutionResult {
@@ -34,15 +40,7 @@ export interface ExecutionResult {
   executionTimeMs?: number;
   totalTimeMs?: number;
   timestamp?: string;
-}
-
-export interface ExportedDocRecord {
-  id: string;
-  title: string;
-  documentId: string;
-  documentUrl: string;
-  language: SupportedLanguage;
-  timestamp: string;
+  history?: TerminalLogEntry[];
 }
 
 export interface UserManualTopic {

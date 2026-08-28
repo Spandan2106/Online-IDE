@@ -289,14 +289,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   return (
     <div
       id="code-editor-container"
-      className={`flex flex-col h-full rounded-lg border overflow-hidden shadow-xs transition-colors duration-200 ${
+      className={`flex flex-col h-full w-full min-h-0 rounded-lg border overflow-hidden shadow-xs transition-colors duration-200 ${
         isDark ? 'bg-[#0F172A] border-[#334155]' : 'bg-white border-slate-200'
       }`}
     >
       {/* Editor Top Bar / File Tabs */}
       <div
         id="editor-toolbar"
-        className={`flex flex-wrap items-center justify-between px-3 py-2 border-b text-xs select-none gap-2 ${
+        className={`flex flex-wrap items-center justify-between px-3 py-2 border-b text-xs select-none gap-2 shrink-0 ${
           isDark ? 'bg-[#1E293B] border-[#334155] text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
         }`}
       >
@@ -475,7 +475,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       {showSearchBar && (
         <div
           id="editor-search-bar"
-          className={`flex flex-wrap items-center justify-between px-3 py-2 border-b text-xs gap-2 ${
+          className={`flex flex-wrap items-center justify-between px-3 py-2 border-b text-xs gap-2 shrink-0 ${
             isDark ? 'bg-[#1E293B] border-[#334155] text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-800'
           }`}
         >
@@ -557,18 +557,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       )}
 
       {/* Editor Body: Line Numbers + Textarea */}
-      <div className="relative flex-1 flex overflow-hidden font-mono bg-[#0F172A]">
+      <div
+        className={`relative flex-1 min-h-0 min-w-0 w-full flex overflow-hidden font-mono ${
+          isDark ? 'bg-[#0F172A]' : 'bg-white'
+        }`}
+      >
         {/* Line Numbers Column */}
         <div
           ref={lineNumbersRef}
           id="editor-line-numbers"
           aria-hidden="true"
-          className={`w-11 py-3 pr-2.5 text-right select-none overflow-hidden font-mono text-xs border-r transition-colors ${
+          className={`w-12 h-full py-3 pr-2.5 text-right select-none overflow-hidden font-mono text-xs border-r shrink-0 transition-colors ${
             isDark
               ? 'bg-[#1E293B]/30 border-[#334155] text-slate-600'
               : 'bg-slate-100/70 border-slate-200 text-slate-400'
           }`}
-          style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}
+          style={{ fontSize: `${fontSize}px`, lineHeight: '1.6' }}
         >
           {lines.map((_, idx) => {
             const lineNum = idx + 1;
@@ -578,6 +582,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             return (
               <div
                 key={idx}
+                style={{ lineHeight: '1.6' }}
                 className={`transition-colors ${
                   isHighlighted
                     ? 'text-sky-400 font-bold bg-sky-500/20'
@@ -594,8 +599,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           })}
         </div>
 
-        {/* Code Textarea Area */}
-        <div className="relative flex-1 h-full overflow-hidden bg-[#0F172A]">
+        {/* Code Textarea Area with absolute fill */}
+        <div className="relative flex-1 h-full min-w-0 min-h-0 overflow-hidden">
           <textarea
             ref={textareaRef}
             id="code-editor-textarea"
@@ -609,14 +614,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
-            className={`w-full h-full p-3 resize-none outline-none font-mono leading-[1.5] transition-colors overflow-auto ${
+            className={`absolute inset-0 w-full h-full p-3 resize-none outline-none font-mono transition-colors overflow-auto ${
               isDark
                 ? 'bg-[#0F172A] text-[#F8FAFC] selection:bg-sky-600/40 placeholder-slate-600'
                 : 'bg-white text-slate-900 selection:bg-blue-200 placeholder-slate-400'
             }`}
             style={{
               fontSize: `${fontSize}px`,
-              lineHeight: '1.5',
+              lineHeight: '1.6',
               tabSize: 4,
             }}
             placeholder={`// Write your ${config.name} code here...`}
@@ -627,7 +632,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       {/* Editor Bottom Status Bar */}
       <div
         id="editor-status-bar"
-        className={`flex items-center justify-between px-4 py-1.5 border-t text-[11px] font-mono select-none ${
+        className={`flex items-center justify-between px-4 py-1.5 border-t text-[11px] font-mono select-none shrink-0 ${
           isDark ? 'bg-[#1E293B] border-[#334155] text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
         }`}
       >

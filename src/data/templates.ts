@@ -54,6 +54,37 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
 export const TEMPLATES_BY_LANGUAGE: Record<SupportedLanguage, CodeTemplate[]> = {
   c: [
     {
+      id: 'c-interactive',
+      title: 'Interactive Terminal Input',
+      category: 'Interactive I/O',
+      description: 'Prompts for user name and numbers directly in the live terminal',
+      code: `#include <stdio.h>
+
+int main(void) {
+    char name[64];
+    int num;
+    
+    printf("=========================================\\n");
+    printf(" Welcome to the Live C Terminal!\\n");
+    printf("=========================================\\n");
+    
+    printf("Enter your name: ");
+    fflush(stdout);
+    if (scanf("%63s", name) == 1) {
+        printf("Hello, %s! Nice to meet you.\\n\\n", name);
+    }
+    
+    printf("Enter an integer to calculate its square: ");
+    fflush(stdout);
+    if (scanf("%d", &num) == 1) {
+        printf(">> The square of %d is %d\\n", num, num * num);
+    }
+    
+    return 0;
+}
+`,
+    },
+    {
       id: 'c-hello',
       title: 'Hello World',
       category: 'Basics',
@@ -62,7 +93,7 @@ export const TEMPLATES_BY_LANGUAGE: Record<SupportedLanguage, CodeTemplate[]> = 
 
 int main(void) {
     printf("======================================\\n");
-    printf(" Welcome to the Online C IDE!\\n");
+    printf(" Welcome to SyntaxHub Online C IDE!\\n");
     printf("======================================\\n");
     printf("Hello, World! Ready to build amazing code.\\n");
     return 0;
@@ -70,183 +101,77 @@ int main(void) {
 `,
     },
     {
-      id: 'c-io',
-      title: 'Interactive Input / Output',
-      category: 'Input/Output',
-      description: 'Reading user name and numbers via stdin and calculating statistics',
-      stdin: `Alex
-25
-4
-12 45 8 92`,
+      id: 'c-calculator',
+      title: 'Interactive Calculator',
+      category: 'Interactive I/O',
+      description: 'Performs arithmetic operations based on live terminal input',
       code: `#include <stdio.h>
 
 int main(void) {
-    char name[64];
-    int age;
-    int n;
+    double a, b;
+    char op;
     
-    printf("Reading user profile and array from stdin...\\n");
+    printf("--- Interactive C Calculator ---\\n");
+    printf("Enter first number: ");
+    fflush(stdout);
+    scanf("%lf", &a);
     
-    if (scanf("%63s", name) != 1) {
-        printf("Error: Could not read name\\n");
-        return 1;
+    printf("Enter operator (+, -, *, /): ");
+    fflush(stdout);
+    scanf(" %c", &op);
+    
+    printf("Enter second number: ");
+    fflush(stdout);
+    scanf("%lf", &b);
+    
+    printf("\\nCalculation Result:\\n");
+    switch(op) {
+        case '+': printf("%.2lf + %.2lf = %.2lf\\n", a, b, a + b); break;
+        case '-': printf("%.2lf - %.2lf = %.2lf\\n", a, b, a - b); break;
+        case '*': printf("%.2lf * %.2lf = %.2lf\\n", a, b, a * b); break;
+        case '/': 
+            if (b != 0) printf("%.2lf / %.2lf = %.2lf\\n", a, b, a / b);
+            else printf("Error: Division by zero!\\n");
+            break;
+        default: printf("Unknown operator '%c'\\n", op);
     }
-    
-    if (scanf("%d", &age) != 1) {
-        printf("Error: Could not read age\\n");
-        return 1;
-    }
-    
-    printf("Profile: Name = %s, Age = %d years old\\n", name, age);
-    
-    if (scanf("%d", &n) == 1 && n > 0) {
-        int sum = 0;
-        int maxVal = -2147483648;
-        printf("Reading %d integers:\\n", n);
-        
-        for (int i = 0; i < n; i++) {
-            int val;
-            if (scanf("%d", &val) == 1) {
-                sum += val;
-                if (val > maxVal) maxVal = val;
-                printf("  [Item %d]: %d\\n", i + 1, val);
-            }
-        }
-        
-        printf("Sum: %d | Average: %.2f | Max: %d\\n", sum, (double)sum / n, maxVal);
-    }
-    
     return 0;
 }
 `,
     },
     {
       id: 'c-algo',
-      title: 'Binary Search & Quick Sort',
+      title: 'Array Sorting & Search',
       category: 'Algorithms',
-      description: 'Sorting an integer array and performing O(log n) binary search',
-      stdin: `7
-34 7 23 32 5 62 19
-32`,
+      description: 'Sorts integers and searches target via terminal prompt',
       code: `#include <stdio.h>
 #include <stdlib.h>
 
-int compareInts(const void *a, const void *b) {
+int compare(const void *a, const void *b) {
     return (*(int*)a - *(int*)b);
 }
 
-int binarySearch(int arr[], int n, int target) {
-    int low = 0, high = n - 1;
-    while (low <= high) {
-        int mid = low + (high - low) / 2;
-        if (arr[mid] == target) return mid;
-        if (arr[mid] < target) low = mid + 1;
-        else high = mid - 1;
-    }
-    return -1;
-}
-
 int main(void) {
-    int n, target;
-    if (scanf("%d", &n) != 1 || n <= 0) {
-        printf("Provide array size in stdin!\\n");
-        return 1;
-    }
-
+    int n;
+    printf("Enter number of elements: ");
+    fflush(stdout);
+    if (scanf("%d", &n) != 1 || n <= 0) return 0;
+    
     int *arr = (int*)malloc(n * sizeof(int));
+    printf("Enter %d integers (press Enter after each):\\n", n);
     for (int i = 0; i < n; i++) {
+        printf("  Element [%d]: ", i + 1);
+        fflush(stdout);
         scanf("%d", &arr[i]);
     }
-
-    printf("Original array: ");
+    
+    qsort(arr, n, sizeof(int), compare);
+    
+    printf("\\nSorted Array: ");
     for (int i = 0; i < n; i++) printf("%d ", arr[i]);
     printf("\\n");
-
-    qsort(arr, n, sizeof(int), compareInts);
-
-    printf("Sorted array:   ");
-    for (int i = 0; i < n; i++) printf("%d ", arr[i]);
-    printf("\\n");
-
-    if (scanf("%d", &target) == 1) {
-        int idx = binarySearch(arr, n, target);
-        if (idx != -1) {
-            printf("Found target %d at sorted index %d!\\n", target, idx);
-        } else {
-            printf("Target %d not found in array.\\n", target);
-        }
-    }
-
+    
     free(arr);
-    return 0;
-}
-`,
-    },
-    {
-      id: 'c-ds',
-      title: 'Linked List Implementation',
-      category: 'Data Structures',
-      description: 'Singly linked list with insert, traverse, and memory deallocation',
-      code: `#include <stdio.h>
-#include <stdlib.h>
-
-typedef struct Node {
-    int data;
-    struct Node *next;
-} Node;
-
-Node* createNode(int value) {
-    Node *newNode = (Node*)malloc(sizeof(Node));
-    if (!newNode) return NULL;
-    newNode->data = value;
-    newNode->next = NULL;
-    return newNode;
-}
-
-void insertTail(Node **head, int value) {
-    Node *newNode = createNode(value);
-    if (*head == NULL) {
-        *head = newNode;
-        return;
-    }
-    Node *curr = *head;
-    while (curr->next != NULL) {
-        curr = curr->next;
-    }
-    curr->next = newNode;
-}
-
-void printList(Node *head) {
-    printf("Linked List: ");
-    Node *curr = head;
-    while (curr != NULL) {
-        printf("[%d] -> ", curr->data);
-        curr = curr->next;
-    }
-    printf("NULL\\n");
-}
-
-void freeList(Node *head) {
-    Node *curr = head;
-    while (curr != NULL) {
-        Node *temp = curr;
-        curr = curr->next;
-        free(temp);
-    }
-}
-
-int main(void) {
-    Node *head = NULL;
-    int values[] = {10, 20, 30, 40, 50};
-    int count = sizeof(values) / sizeof(values[0]);
-
-    for (int i = 0; i < count; i++) {
-        insertTail(&head, values[i]);
-    }
-
-    printList(head);
-    freeList(head);
-    printf("Memory freed successfully.\\n");
     return 0;
 }
 `,
@@ -255,178 +180,85 @@ int main(void) {
 
   cpp: [
     {
+      id: 'cpp-interactive',
+      title: 'Interactive Terminal Input',
+      category: 'Interactive I/O',
+      description: 'Modern C++17 std::cin & std::cout terminal interaction',
+      code: `#include <iostream>
+#include <string>
+
+int main() {
+    std::string name;
+    int a, b;
+    
+    std::cout << "=========================================" << std::endl;
+    std::cout << " Welcome to the Live C++ Terminal!" << std::endl;
+    std::cout << "=========================================" << std::endl;
+    
+    std::cout << "Enter your developer name: " << std::flush;
+    if (std::cin >> name) {
+        std::cout << "Hello, " << name << "! Let's run some C++ code." << std::endl << std::endl;
+    }
+    
+    std::cout << "Enter two numbers (separated by space or Enter): " << std::flush;
+    if (std::cin >> a >> b) {
+        std::cout << ">> Sum: " << (a + b) << std::endl;
+        std::cout << ">> Product: " << (a * b) << std::endl;
+        std::cout << ">> Max: " << std::max(a, b) << std::endl;
+    }
+    
+    return 0;
+}
+`,
+    },
+    {
       id: 'cpp-hello',
-      title: 'Hello World (Modern C++17)',
+      title: 'Hello World',
       category: 'Basics',
-      description: 'C++17 greeting with STL containers and lambda iterations',
+      description: 'Standard C++ Hello World output',
       code: `#include <iostream>
-#include <vector>
-#include <string>
-#include <algorithm>
 
 int main() {
-    std::cout << "========================================" << std::endl;
-    std::cout << "   Online C++ IDE (C++17 Standard)     " << std::endl;
-    std::cout << "========================================" << std::endl;
-
-    std::vector<std::string> languages = {"C", "C++", "Java", "Python"};
-
-    std::cout << "Supported Languages in this IDE:" << std::endl;
-    for (size_t i = 0; i < languages.size(); ++i) {
-        std::cout << "  " << (i + 1) << ". " << languages[i] << std::endl;
-    }
-
+    std::cout << "=========================================" << std::endl;
+    std::cout << " Hello, World from C++17!" << std::endl;
+    std::cout << "=========================================" << std::endl;
     return 0;
 }
 `,
     },
     {
-      id: 'cpp-io',
-      title: 'Fast I/O & Dynamic Sum',
-      category: 'Input/Output',
-      description: 'Competitive programming fast I/O with standard stream formatting',
-      stdin: `TechTeam
-5
-15 28 33 42 19`,
-      code: `#include <iostream>
-#include <vector>
-#include <numeric>
-#include <string>
-
-int main() {
-    // Fast I/O
-    std::ios_base::sync_with_stdio(false);
-    std::cin.tie(NULL);
-
-    std::string groupName;
-    int n;
-
-    if (std::cin >> groupName >> n) {
-        std::cout << "Processing data for team: " << groupName << "\\n";
-        std::cout << "Number of elements: " << n << "\\n";
-
-        std::vector<long long> numbers(n);
-        for (int i = 0; i < n; ++i) {
-            std::cin >> numbers[i];
-        }
-
-        long long sum = std::accumulate(numbers.begin(), numbers.end(), 0LL);
-        double avg = static_cast<double>(sum) / n;
-
-        std::cout << "Array elements: ";
-        for (const auto& num : numbers) {
-            std::cout << num << " ";
-        }
-        std::cout << "\\nTotal Sum: " << sum << "\\nAverage: " << avg << "\\n";
-    } else {
-        std::cout << "Please provide team name and numbers in stdin.\\n";
-    }
-
-    return 0;
-}
-`,
-    },
-    {
-      id: 'cpp-oop',
-      title: 'Object-Oriented Programming (Polymorphism)',
-      category: 'OOP',
-      description: 'Demonstrating abstract classes, virtual methods, and inheritance',
-      code: `#include <iostream>
-#include <memory>
-#include <vector>
-#include <cmath>
-
-class Shape {
-public:
-    virtual ~Shape() = default;
-    virtual double getArea() const = 0;
-    virtual double getPerimeter() const = 0;
-    virtual void printInfo() const = 0;
-};
-
-class Rectangle : public Shape {
-private:
-    double width, height;
-public:
-    Rectangle(double w, double h) : width(w), height(h) {}
-    double getArea() const override { return width * height; }
-    double getPerimeter() const override { return 2 * (width + height); }
-    void printInfo() const override {
-        std::cout << "Rectangle [" << width << " x " << height 
-                  << "] Area = " << getArea() << ", Perimeter = " << getPerimeter() << "\\n";
-    }
-};
-
-class Circle : public Shape {
-private:
-    double radius;
-public:
-    Circle(double r) : radius(r) {}
-    double getArea() const override { return M_PI * radius * radius; }
-    double getPerimeter() const override { return 2 * M_PI * radius; }
-    void printInfo() const override {
-        std::cout << "Circle [r = " << radius 
-                  << "] Area = " << getArea() << ", Perimeter = " << getPerimeter() << "\\n";
-    }
-};
-
-int main() {
-    std::vector<std::unique_ptr<Shape>> shapes;
-    shapes.push_back(std::make_unique<Rectangle>(10.0, 5.0));
-    shapes.push_back(std::make_unique<Circle>(7.0));
-    shapes.push_back(std::make_unique<Rectangle>(4.0, 4.0));
-
-    std::cout << "--- Shape Polymorphism Showcase ---\\n";
-    double totalArea = 0;
-    for (const auto& shape : shapes) {
-        shape->printInfo();
-        totalArea += shape->getArea();
-    }
-
-    std::cout << "\\nTotal combined area: " << totalArea << "\\n";
-    return 0;
-}
-`,
-    },
-    {
-      id: 'cpp-ds',
-      title: 'STL Map & Frequency Analyzer',
+      id: 'cpp-vector-algo',
+      title: 'Vector Manipulation & STL',
       category: 'Data Structures',
-      description: 'Word frequency counter using std::map with sorted key-value output',
-      stdin: `apple banana apple orange banana apple mango kiwi orange`,
+      description: 'Interactive dynamic array with STL algorithms',
       code: `#include <iostream>
-#include <string>
-#include <sstream>
-#include <map>
-#include <iomanip>
+#include <vector>
+#include <algorithm>
+#include <numeric>
 
 int main() {
-    std::string line;
-    std::map<std::string, int> freqMap;
-
-    std::cout << "--- STL Map Word Frequency Analyzer ---\\n";
-
-    if (std::getline(std::cin, line) && !line.empty()) {
-        std::stringstream ss(line);
-        std::string word;
-        int totalWords = 0;
-
-        while (ss >> word) {
-            freqMap[word]++;
-            totalWords++;
-        }
-
-        std::cout << "Total words parsed: " << totalWords << "\\n\\n";
-        std::cout << std::left << std::setw(15) << "WORD" << "COUNT" << "\\n";
-        std::cout << "----------------------\\n";
-
-        for (const auto& [key, count] : freqMap) {
-            std::cout << std::left << std::setw(15) << key << count << "\\n";
-        }
-    } else {
-        std::cout << "No input line provided in stdin.\\n";
+    int count;
+    std::cout << "How many numbers would you like to analyze? " << std::flush;
+    if (!(std::cin >> count) || count <= 0) return 0;
+    
+    std::vector<int> numbers;
+    for (int i = 0; i < count; ++i) {
+        int val;
+        std::cout << "Number " << (i + 1) << ": " << std::flush;
+        std::cin >> val;
+        numbers.push_back(val);
     }
-
+    
+    std::sort(numbers.begin(), numbers.end());
+    double sum = std::accumulate(numbers.begin(), numbers.end(), 0);
+    
+    std::cout << "\\n--- Results ---" << std::endl;
+    std::cout << "Sorted: ";
+    for (int n : numbers) std::cout << n << " ";
+    std::cout << std::endl;
+    std::cout << "Average: " << (sum / count) << std::endl;
+    std::cout << "Min: " << numbers.front() << " | Max: " << numbers.back() << std::endl;
+    
     return 0;
 }
 `,
@@ -435,183 +267,54 @@ int main() {
 
   java: [
     {
-      id: 'java-hello',
-      title: 'Hello World',
-      category: 'Basics',
-      description: 'Standard Java main class structure and JVM properties',
-      code: `public class Main {
-    public static void main(String[] args) {
-        System.out.println("========================================");
-        System.out.println("     Online Java IDE (Java 17 LTS)      ");
-        System.out.println("========================================");
-        System.out.println("Hello, World! Java is running smoothly.");
-        System.out.println("Java Version: " + System.getProperty("java.version"));
-        System.out.println("Java Vendor:  " + System.getProperty("java.vendor"));
-    }
-}
-`,
-    },
-    {
-      id: 'java-io',
-      title: 'Scanner Interactive I/O',
-      category: 'Input/Output',
-      description: 'Using java.util.Scanner to read formatted records and tokens',
-      stdin: `Developer
-3
-95.5
-88.0
-92.5`,
+      id: 'java-interactive',
+      title: 'Interactive Scanner Input',
+      category: 'Interactive I/O',
+      description: 'Java 17 live user input using java.util.Scanner',
       code: `import java.util.Scanner;
-import java.util.ArrayList;
 
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-
-        System.out.println("--- Student Grade Calculator ---");
-
+        
+        System.out.println("=========================================");
+        System.out.println(" Welcome to the Live Java Terminal!");
+        System.out.println("=========================================");
+        
+        System.out.print("Enter your name: ");
         if (scanner.hasNext()) {
-            String studentName = scanner.next();
-            int scoreCount = scanner.nextInt();
-
-            ArrayList<Double> scores = new ArrayList<>();
-            double sum = 0;
-
-            for (int i = 0; i < scoreCount; i++) {
-                if (scanner.hasNextDouble()) {
-                    double score = scanner.nextDouble();
-                    scores.add(score);
-                    sum += score;
+            String name = scanner.next();
+            System.out.println("Hello, " + name + "! Welcome to Java 17 LTS.\\n");
+        }
+        
+        System.out.print("Enter a number to check if it is Prime: ");
+        if (scanner.hasNextInt()) {
+            int num = scanner.nextInt();
+            boolean isPrime = num > 1;
+            for (int i = 2; i * i <= num; i++) {
+                if (num % i == 0) {
+                    isPrime = false;
+                    break;
                 }
             }
-
-            double average = scores.isEmpty() ? 0 : sum / scores.size();
-
-            System.out.println("Student Name: " + studentName);
-            System.out.println("Total Tests:  " + scores.size());
-            System.out.println("Scores:       " + scores);
-            System.out.printf("Average:      %.2f%%%n", average);
-            System.out.println("Letter Grade: " + (average >= 90 ? "A" : average >= 80 ? "B" : "C"));
-        } else {
-            System.out.println("Please provide student name and scores in stdin.");
+            System.out.println(">> " + num + (isPrime ? " is a PRIME number!" : " is NOT a prime number."));
         }
-
+        
         scanner.close();
     }
 }
 `,
     },
     {
-      id: 'java-oop',
-      title: 'Object-Oriented Bank System',
-      category: 'OOP',
-      description: 'Encapsulation, custom exceptions, and transaction handling',
-      code: `import java.util.ArrayList;
-import java.util.List;
-
-class BankAccount {
-    private final String accountNumber;
-    private final String accountHolder;
-    private double balance;
-    private final List<String> transactionHistory;
-
-    public BankAccount(String accountNumber, String accountHolder, double initialDeposit) {
-        this.accountNumber = accountNumber;
-        this.accountHolder = accountHolder;
-        this.balance = initialDeposit;
-        this.transactionHistory = new ArrayList<>();
-        transactionHistory.add("Account opened with initial deposit: $" + initialDeposit);
-    }
-
-    public void deposit(double amount) {
-        if (amount > 0) {
-            balance += amount;
-            transactionHistory.add("Deposited: +$" + amount + " (Balance: $" + balance + ")");
-        }
-    }
-
-    public boolean withdraw(double amount) {
-        if (amount > 0 && amount <= balance) {
-            balance -= amount;
-            transactionHistory.add("Withdrew:  -$" + amount + " (Balance: $" + balance + ")");
-            return true;
-        }
-        transactionHistory.add("Failed withdrawal of $" + amount + " (Insufficient funds)");
-        return false;
-    }
-
-    public void printStatement() {
-        System.out.println("====================================");
-        System.out.println("Account Statement: " + accountNumber + " (" + accountHolder + ")");
-        System.out.println("Current Balance:   $" + balance);
-        System.out.println("Transactions:");
-        for (String tx : transactionHistory) {
-            System.out.println("  * " + tx);
-        }
-        System.out.println("====================================");
-    }
-}
-
-public class Main {
+      id: 'java-hello',
+      title: 'Hello World',
+      category: 'Basics',
+      description: 'Standard Java 17 class and main entry point',
+      code: `public class Main {
     public static void main(String[] args) {
-        BankAccount account = new BankAccount("ACC-9042", "Sarah Connor", 500.00);
-        account.deposit(250.50);
-        account.withdraw(120.00);
-        account.withdraw(800.00); // Should fail
-        account.deposit(1000.00);
-        account.withdraw(450.00);
-        account.printStatement();
-    }
-}
-`,
-    },
-    {
-      id: 'java-algo',
-      title: 'Binary Tree Traversal',
-      category: 'Data Structures',
-      description: 'Binary Search Tree insertion and In-order, Pre-order traversal',
-      code: `class TreeNode {
-    int val;
-    TreeNode left, right;
-    TreeNode(int val) { this.val = val; }
-}
-
-class BinarySearchTree {
-    TreeNode root;
-
-    public void insert(int val) {
-        root = insertRec(root, val);
-    }
-
-    private TreeNode insertRec(TreeNode root, int val) {
-        if (root == null) return new TreeNode(val);
-        if (val < root.val) root.left = insertRec(root.left, val);
-        else if (val > root.val) root.right = insertRec(root.right, val);
-        return root;
-    }
-
-    public void inOrder(TreeNode node) {
-        if (node != null) {
-            inOrder(node.left);
-            System.out.print(node.val + " ");
-            inOrder(node.right);
-        }
-    }
-}
-
-public class Main {
-    public static void main(String[] args) {
-        BinarySearchTree bst = new BinarySearchTree();
-        int[] elements = {50, 30, 20, 40, 70, 60, 80};
-
-        System.out.println("Inserting elements into BST: 50, 30, 20, 40, 70, 60, 80");
-        for (int el : elements) {
-            bst.insert(el);
-        }
-
-        System.out.print("In-order Traversal (Sorted Output): ");
-        bst.inOrder(bst.root);
-        System.out.println();
+        System.out.println("=========================================");
+        System.out.println(" Hello, World from Java 17 LTS!");
+        System.out.println("=========================================");
     }
 }
 `,
@@ -620,174 +323,52 @@ public class Main {
 
   python: [
     {
-      id: 'py-hello',
-      title: 'Hello World & Statistics',
+      id: 'python-interactive',
+      title: 'Interactive input() Prompt',
+      category: 'Interactive I/O',
+      description: 'Real-time terminal input with Python 3',
+      code: `print("=========================================")
+print(" Welcome to the Live Python Terminal!")
+print("=========================================")
+
+name = input("Enter your name: ")
+print(f"Hello, {name}! Ready to write some Python.\n")
+
+try:
+    num = float(input("Enter a number to calculate square and cube: "))
+    print(f">> Square of {num} is {num ** 2}")
+    print(f">> Cube of {num} is {num ** 3}")
+except ValueError:
+    print("Invalid number format!")
+`,
+    },
+    {
+      id: 'python-hello',
+      title: 'Hello World',
       category: 'Basics',
-      description: 'Python 3 basics with formatted f-strings and math operations',
-      code: `import sys
-import math
-
-def main():
-    print("========================================")
-    print("     Online Python IDE (Python 3.10)    ")
-    print("========================================")
-    print(f"Python interpreter: {sys.version}")
-    
-    # Calculate geometric values
-    radius = 5.0
-    area = math.pi * (radius ** 2)
-    circumference = 2 * math.pi * radius
-    
-    print(f"Circle radius: {radius}")
-    print(f"Calculated Area: {area:.4f}")
-    print(f"Calculated Circumference: {circumference:.4f}")
-
-if __name__ == "__main__":
-    main()
+      description: 'Standard Python greeting',
+      code: `print("=========================================")
+print(" Hello, World from Python 3.10!")
+print("=========================================")
+print("SyntaxHub IDE is fast, flexible, and interactive.")
 `,
     },
     {
-      id: 'py-io',
-      title: 'Interactive User Input & Parsing',
-      category: 'Input/Output',
-      description: 'Reading multiline stdin, parsing numbers, and generating summary dict',
-      stdin: `CodeExplorer
-4
-12 45 78 23`,
-      code: `import sys
+      id: 'python-quiz',
+      title: 'Interactive Math Quiz',
+      category: 'Interactive I/O',
+      description: 'A 2-question interactive math game in the terminal',
+      code: `import random
 
-def process_input():
-    print("--- Reading from standard input ---")
-    lines = [line.strip() for line in sys.stdin if line.strip()]
-    
-    if not lines:
-        print("No input provided in stdin!")
-        return
+print("=== Python Quick Math Challenge ===")
+a = random.randint(1, 10)
+b = random.randint(1, 10)
 
-    username = lines[0]
-    count = int(lines[1]) if len(lines) > 1 else 0
-    numbers = []
-    
-    if len(lines) > 2:
-        numbers = [int(x) for x in lines[2].split()]
-        
-    print(f"User: {username}")
-    print(f"Parsed {len(numbers)} numbers: {numbers}")
-    
-    if numbers:
-        summary = {
-            "sum": sum(numbers),
-            "min": min(numbers),
-            "max": max(numbers),
-            "average": sum(numbers) / len(numbers),
-            "sorted": sorted(numbers)
-        }
-        print("\\nSummary Report:")
-        for key, val in summary.items():
-            print(f"  {key.capitalize():<10}: {val}")
-
-if __name__ == "__main__":
-    process_input()
-`,
-    },
-    {
-      id: 'py-algo',
-      title: 'Recursive QuickSort & Fibonacci',
-      category: 'Algorithms',
-      description: 'Recursive divide-and-conquer QuickSort with performance timing',
-      code: `import time
-
-def quicksort(arr):
-    if len(arr) <= 1:
-        return arr
-    pivot = arr[len(arr) // 2]
-    left = [x for x in arr if x < pivot]
-    middle = [x for x in arr if x == pivot]
-    right = [x for x in arr if x > pivot]
-    return quicksort(left) + middle + quicksort(right)
-
-def fibonacci(n, memo={}):
-    if n in memo:
-        return memo[n]
-    if n <= 0:
-        return 0
-    if n == 1:
-        return 1
-    memo[n] = fibonacci(n - 1, memo) + fibonacci(n - 2, memo)
-    return memo[n]
-
-def main():
-    sample_data = [64, 34, 25, 12, 22, 11, 90, 88, 45, 5, 73]
-    print(f"Original dataset: {sample_data}")
-    
-    start_time = time.perf_counter()
-    sorted_data = quicksort(sample_data)
-    duration = (time.perf_counter() - start_time) * 1000
-    
-    print(f"QuickSorted:      {sorted_data}")
-    print(f"Sort duration:    {duration:.4f} ms")
-    
-    print("\\nFibonacci Sequence (first 12 terms):")
-    fib_seq = [fibonacci(i) for i in range(1, 13)]
-    print(f"  {fib_seq}")
-
-if __name__ == "__main__":
-    main()
-`,
-    },
-    {
-      id: 'py-oop',
-      title: 'Classes, Dataclasses & Generators',
-      category: 'OOP',
-      description: 'Modern Python dataclasses with custom generators and property decorators',
-      code: `from dataclasses import dataclass, field
-from typing import List
-
-@dataclass
-class Task:
-    id: int
-    title: str
-    priority: str = "Medium"
-    completed: bool = False
-
-class TaskManager:
-    def __init__(self):
-        self.tasks: List[Task] = []
-
-    def add_task(self, title: str, priority: str = "Medium"):
-        task_id = len(self.tasks) + 1
-        task = Task(id=task_id, title=title, priority=priority)
-        self.tasks.append(task)
-        return task
-
-    def mark_complete(self, task_id: int):
-        for task in self.tasks:
-            if task.id == task_id:
-                task.completed = True
-                return True
-        return False
-
-    def active_tasks(self):
-        for task in self.tasks:
-            if not task.completed:
-                yield task
-
-def main():
-    manager = TaskManager()
-    manager.add_task("Review C++ compiler benchmarks", "High")
-    manager.add_task("Prepare Java 17 test cases", "Medium")
-    manager.add_task("Sync Google Docs export pipeline", "High")
-    manager.add_task("Configure Text-to-Speech audio", "Low")
-
-    manager.mark_complete(2)
-
-    print("--- Active (Pending) Tasks ---")
-    for task in manager.active_tasks():
-        status = "[DONE]" if task.completed else "[TODO]"
-        print(f"{status} #{task.id}: {task.title} (Priority: {task.priority})")
-
-if __name__ == "__main__":
-    main()
+answer = int(input(f"What is {a} * {b}? "))
+if answer == a * b:
+    print("✓ Correct! Fantastic job.")
+else:
+    print(f"✗ Oops! The correct answer was {a * b}.")
 `,
     },
   ],

@@ -1,315 +1,378 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Terminal,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Copy,
-  Check,
+  Play,
+  Square,
   Trash2,
   Maximize2,
   Minimize2,
-  FileText,
-  AlertCircle,
-  HelpCircle,
-  CornerDownRight,
-  Code2,
+  FileDown,
+  CornerDownLeft,
+  Clock,
+  Sparkles,
+  ChevronRight,
+  RotateCcw,
 } from 'lucide-react';
-import { ExecutionResult, ThemeMode, SupportedLanguage } from '../types';
+import { ExecutionResult, ThemeMode, SupportedLanguage, TerminalLogEntry } from '../types';
 
 interface OutputConsoleProps {
+  logs: TerminalLogEntry[];
   result: ExecutionResult;
   themeMode: ThemeMode;
   language: SupportedLanguage;
   isRunning: boolean;
+  onRunCode: () => void;
+  onStopCode: () => void;
   onClearOutput: () => void;
-  onExportToDocs: () => void;
+  onSendInput: (input: string) => void;
+  onOpenPdfExport: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  fontSize?: number;
+  onChangeFontSize?: (size: number) => void;
 }
 
 export const OutputConsole: React.FC<OutputConsoleProps> = ({
+  logs,
   result,
   themeMode,
   language,
   isRunning,
+  onRunCode,
+  onStopCode,
   onClearOutput,
-  onExportToDocs,
+  onSendInput,
+  onOpenPdfExport,
   isFullscreen,
   onToggleFullscreen,
+  fontSize = 13,
+  onChangeFontSize,
 }) => {
   const isDark = themeMode === 'dark';
-  const [activeTab, setActiveTab] = useState<'all' | 'stdout' | 'stderr'>('all');
-  const [copied, setCopied] = useState(false);
+  const [currentInput, setCurrentInput] = useState('');
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const terminalScrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const hasOutput = Boolean(result.stdout || result.stderr);
-  const isError = result.status === 'compile_error' || result.status === 'runtime_error' || result.status === 'system_error';
-  const isSuccess = result.status === 'success';
+  // Auto-scroll terminal on new logs
+  useEffect(() => {
+    if (terminalScrollRef.current) {
+      terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
+    }
+  }, [logs, isRunning]);
 
-  const handleCopyOutput = async () => {
-    const textToCopy = `${result.stdout ? `=== STDOUT ===\n${result.stdout}\n` : ''}${
-      result.stderr ? `=== STDERR / DIAGNOSTICS ===\n${result.stderr}\n` : ''
-    }`;
-    if (!textToCopy) return;
+  // Focus input when program starts running
+  useEffect(() => {
+    if (isRunning) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isRunning]);
 
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isRunning && logs.length === 0) {
+      onRunCode();
+      return;
+    }
+    submitInput();
+  };
+
+  const submitInput = () => {
+    const textToSend = currentInput;
+    onSendInput(textToSend);
+
+    if (textToSend.trim()) {
+      setInputHistory((prev) => [...prev, textToSend]);
+    }
+    setHistoryIndex(-1);
+    setCurrentInput('');
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (inputHistory.length > 0) {
+        const newIndex = historyIndex === -1 ? inputHistory.length - 1 : Math.max(0, historyIndex - 1);
+        setHistoryIndex(newIndex);
+        setCurrentInput(inputHistory[newIndex] || '');
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex !== -1) {
+        const newIndex = historyIndex + 1;
+        if (newIndex >= inputHistory.length) {
+          setHistoryIndex(-1);
+          setCurrentInput('');
+        } else {
+          setHistoryIndex(newIndex);
+          setCurrentInput(inputHistory[newIndex] || '');
+        }
+      }
     }
   };
 
+  const hasLogs = logs.length > 0;
+  const isSuccess = result.status === 'success';
+  const isError = result.status === 'compile_error' || result.status === 'runtime_error' || result.status === 'system_error';
+
   return (
     <div
-      id="output-console-container"
-      className={`flex flex-col h-full rounded-lg border overflow-hidden shadow-xs transition-all duration-200 ${
-        isFullscreen ? 'fixed inset-4 z-50 shadow-2xl' : ''
-      } ${isDark ? 'bg-[#0F172A] border-[#334155]' : 'bg-white border-slate-200'}`}
+      id="terminal-container"
+      className={`flex flex-col h-full w-full min-h-0 min-w-0 rounded-xl border overflow-hidden shadow-sm transition-all duration-200 ${
+        isFullscreen ? 'fixed inset-3 z-50 shadow-2xl' : ''
+      } ${isDark ? 'bg-[#0B0F19] border-[#2A3447]' : 'bg-slate-950 border-slate-800'}`}
     >
-      {/* Console Top Toolbar */}
+      {/* Terminal Top Bar */}
       <div
-        id="console-toolbar"
-        className={`flex flex-wrap items-center justify-between px-3 py-2 border-b select-none text-xs gap-2 ${
-          isDark ? 'bg-[#1E293B] border-[#334155] text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+        id="terminal-header"
+        className={`flex flex-wrap items-center justify-between px-3 py-2 border-b select-none text-xs gap-2 shrink-0 ${
+          isDark ? 'bg-[#131B2E] border-[#2A3447] text-slate-300' : 'bg-slate-900 border-slate-800 text-slate-300'
         }`}
       >
-        {/* Left: Status Badge & Execution Metrics */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-200">
-            <Terminal className="w-3.5 h-3.5 text-sky-400" />
-            <span>Output Console</span>
+        {/* Left: Title & Status */}
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-100">
+            <Terminal className="w-4 h-4 text-sky-400" />
+            <span className="tracking-tight">Interactive Terminal</span>
           </div>
 
-          {/* Status Indicator */}
+          {/* Running / Status Badges */}
           {isRunning ? (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[11px] font-semibold animate-pulse">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-300 text-[11px] font-semibold animate-pulse">
               <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
-              <span>Compiling & Running...</span>
+              <span>Interactive Session Live</span>
             </div>
           ) : isSuccess ? (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
-              <CheckCircle className="w-3 h-3 text-emerald-400" />
-              <span>Executed (Exit code 0)</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-medium">
+              <span>● Completed (Exit 0)</span>
             </div>
           ) : isError ? (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 text-[11px] font-semibold">
-              <AlertTriangle className="w-3 h-3 text-red-400" />
-              <span>
-                {result.status === 'compile_error'
-                  ? 'Compilation Failed'
-                  : result.status === 'runtime_error'
-                  ? `Runtime Error (code ${result.exitCode})`
-                  : 'System Error'}
-              </span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-medium">
+              <span>● {result.status === 'compile_error' ? 'Build Error' : `Exit ${result.exitCode ?? 1}`}</span>
             </div>
           ) : (
-            <div className="text-[11px] text-slate-500 italic">Ready to run</div>
+            <span className="text-[11px] text-slate-500">Idle</span>
           )}
 
-          {/* Execution Time Badge */}
+          {/* Execution Time */}
           {result.executionTimeMs !== undefined && result.status !== 'idle' && (
-            <div
-              className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono ${
-                isDark ? 'bg-[#0F172A] border-[#334155] text-slate-300' : 'bg-white border-slate-200 text-slate-600'
-              }`}
-              title="Execution runtime"
-            >
-              <Clock className="w-3 h-3 text-sky-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+              <Clock className="w-3 h-3 text-slate-500" />
               <span>{result.executionTimeMs}ms</span>
-            </div>
+            </span>
           )}
         </div>
 
-        {/* Right: Actions (Export Docs, Copy, Clear, Fullscreen) */}
+        {/* Right: Actions */}
         <div className="flex items-center gap-1.5">
-          {/* Export to Google Docs */}
-          {hasOutput && (
+          {/* Zoom font */}
+          {onChangeFontSize && (
+            <div className="hidden sm:flex items-center gap-0.5 bg-slate-800/80 border border-slate-700/80 rounded px-1 text-[11px]">
+              <button
+                onClick={() => onChangeFontSize(Math.max(11, fontSize - 1))}
+                className="px-1 text-slate-400 hover:text-white"
+                title="Decrease terminal font size"
+              >
+                A-
+              </button>
+              <span className="text-slate-500 text-[10px]">{fontSize}px</span>
+              <button
+                onClick={() => onChangeFontSize(Math.min(18, fontSize + 1))}
+                className="px-1 text-slate-400 hover:text-white"
+                title="Increase terminal font size"
+              >
+                A+
+              </button>
+            </div>
+          )}
+
+          {/* Stop / Re-run */}
+          {isRunning ? (
             <button
-              id="export-docs-quick-btn"
-              onClick={onExportToDocs}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border transition-colors ${
-                isDark
-                  ? 'bg-[#0F172A] border-[#334155] hover:bg-[#1E293B] text-sky-400'
-                  : 'bg-white border-slate-200 hover:bg-slate-100 text-sky-600'
-              }`}
-              title="Export code & output to Google Docs"
+              id="terminal-stop-btn"
+              onClick={onStopCode}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-red-600/90 hover:bg-red-500 text-white text-xs font-semibold shadow-xs transition-all active:scale-95"
+              title="Stop current running program"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export Docs</span>
+              <Square className="w-3 h-3 fill-white" />
+              <span>Stop</span>
+            </button>
+          ) : (
+            <button
+              id="terminal-rerun-btn"
+              onClick={onRunCode}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-all active:scale-95"
+              title="Run program (Ctrl + Enter)"
+            >
+              <Play className="w-3 h-3 fill-white" />
+              <span>Run</span>
             </button>
           )}
 
-          {/* Copy Output */}
-          {hasOutput && (
-            <button
-              id="copy-output-btn"
-              onClick={handleCopyOutput}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border transition-colors ${
-                copied
-                  ? 'bg-emerald-600 text-white border-emerald-500'
-                  : isDark
-                  ? 'bg-[#0F172A] border-[#334155] hover:bg-[#1E293B] text-slate-300'
-                  : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
-              }`}
-              title="Copy output text"
-            >
-              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-          )}
-
-          {/* Clear Console */}
-          {hasOutput && (
-            <button
-              id="clear-console-btn"
-              onClick={onClearOutput}
-              className={`p-1.5 rounded-md border transition-colors ${
-                isDark
-                  ? 'bg-[#0F172A] border-[#334155] hover:bg-[#1E293B] text-slate-400 hover:text-red-400'
-                  : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-red-600'
-              }`}
-              title="Clear console output"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* Fullscreen Toggle */}
+          {/* Export PDF */}
           <button
-            id="fullscreen-output-btn"
+            id="terminal-export-pdf-btn"
+            onClick={onOpenPdfExport}
+            className="flex items-center gap-1 px-2 py-1 rounded border border-sky-800/60 bg-sky-950/50 hover:bg-sky-900/60 text-sky-300 text-xs font-medium transition-all"
+            title="Export code and terminal session to PDF"
+          >
+            <FileDown className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">PDF</span>
+          </button>
+
+          {/* Clear */}
+          <button
+            id="terminal-clear-btn"
+            onClick={onClearOutput}
+            className="p-1 rounded border border-slate-700 hover:border-slate-600 bg-slate-800/60 text-slate-400 hover:text-slate-200 transition-colors"
+            title="Clear terminal output"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Fullscreen */}
+          <button
+            id="terminal-fullscreen-btn"
             onClick={onToggleFullscreen}
-            className={`p-1.5 rounded-md border transition-colors ${
-              isDark
-                ? 'bg-[#0F172A] border-[#334155] hover:bg-[#1E293B] text-slate-300'
-                : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'
-            }`}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Terminal'}
+            className="p-1 rounded border border-slate-700 hover:border-slate-600 bg-slate-800/60 text-slate-400 hover:text-slate-200 transition-colors"
+            title={isFullscreen ? 'Exit fullscreen' : 'Maximize terminal'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Filter Tabs if both stdout and stderr exist */}
-      {result.stdout && result.stderr && (
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 border-b text-[11px] font-mono ${
-            isDark ? 'bg-[#0F172A]/70 border-[#334155]' : 'bg-slate-100/60 border-slate-200'
-          }`}
-        >
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-2 py-0.5 rounded transition-colors ${
-              activeTab === 'all'
-                ? 'bg-sky-600 text-white font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            All Stream
-          </button>
-          <button
-            onClick={() => setActiveTab('stdout')}
-            className={`px-2 py-0.5 rounded transition-colors ${
-              activeTab === 'stdout'
-                ? 'bg-sky-600 text-white font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Stdout only
-          </button>
-          <button
-            onClick={() => setActiveTab('stderr')}
-            className={`px-2 py-0.5 rounded transition-colors flex items-center gap-1 ${
-              activeTab === 'stderr'
-                ? 'bg-red-600 text-white font-bold'
-                : isDark
-                ? 'text-red-400 hover:text-red-300'
-                : 'text-red-600 hover:text-red-800'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-            Diagnostics (Stderr)
-          </button>
-        </div>
-      )}
-
-      {/* Terminal View Content Area */}
+      {/* Terminal Main Stream Log View */}
       <div
-        id="terminal-output-body"
-        className={`flex-1 p-3.5 overflow-auto font-mono text-xs leading-relaxed select-text transition-colors ${
-          isDark
-            ? 'bg-[#0F172A] text-[#F8FAFC] selection:bg-sky-700/40'
-            : 'bg-slate-950 text-emerald-400 selection:bg-emerald-900'
-        }`}
+        ref={terminalScrollRef}
+        id="terminal-stream-body"
+        onClick={() => inputRef.current?.focus()}
+        style={{ fontSize: `${fontSize}px` }}
+        className="flex-1 min-h-0 p-3.5 overflow-y-auto font-mono leading-relaxed select-text bg-[#0B0F19] text-[#E2E8F0] cursor-text"
       >
-        {isRunning ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400 py-12">
-            <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-            <div className="text-center">
-              <p className="font-semibold text-slate-200">Executing {language.toUpperCase()} Program...</p>
-              <p className="text-[11px] text-slate-500">Compiling with optimizations and capturing stream</p>
+        {!hasLogs && !isRunning ? (
+          <div className="flex flex-col items-center justify-center h-full text-slate-500 select-none py-10">
+            <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sky-400 mb-3">
+              <Terminal className="w-6 h-6" />
             </div>
-          </div>
-        ) : !hasOutput ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500 select-none py-12">
-            <Terminal className="w-10 h-10 mb-2 opacity-40 text-sky-400" />
-            <p className="text-sm font-semibold text-slate-300">Terminal is Idle</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm text-center">
-              Write your code on the left, add custom input if required, and click{' '}
-              <span className="text-sky-400 font-bold">RUN</span> (Ctrl + Enter) to see the output here.
+            <p className="text-sm font-semibold text-slate-300">Terminal Ready</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-md text-center leading-relaxed">
+              Click <span className="text-emerald-400 font-bold">RUN</span> (or press Ctrl + Enter) to execute your {language.toUpperCase()} code. If your program asks for input (e.g. <code className="text-sky-300 font-mono">scanf</code>, <code className="text-sky-300 font-mono">cin</code>, <code className="text-sky-300 font-mono">Scanner</code>, <code className="text-sky-300 font-mono">input()</code>), type directly in the prompt below.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {/* Standard Output Section */}
-            {(activeTab === 'all' || activeTab === 'stdout') && result.stdout && (
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 flex items-center gap-1.5 select-none">
-                  <CornerDownRight className="w-3 h-3 text-emerald-400" />
-                  <span>Program Standard Output (stdout):</span>
-                </div>
-                <pre className="whitespace-pre-wrap font-mono text-[#F8FAFC] bg-[#1E293B]/60 p-3 rounded-lg border border-[#334155] overflow-x-auto shadow-inner">
-                  {result.stdout}
-                </pre>
-              </div>
-            )}
+          <div className="space-y-1">
+            {logs.map((log) => {
+              if (log.type === 'system') {
+                return (
+                  <div key={log.id} className="text-slate-400 text-[11px] font-mono select-none my-1 opacity-80 whitespace-pre-wrap">
+                    {log.text}
+                  </div>
+                );
+              }
+              if (log.type === 'stdin') {
+                return (
+                  <div key={log.id} className="flex items-start gap-1.5 text-amber-300 font-mono font-semibold">
+                    <span className="text-amber-400/70 select-none">❯</span>
+                    <span className="whitespace-pre-wrap">{log.text}</span>
+                  </div>
+                );
+              }
+              if (log.type === 'stderr') {
+                return (
+                  <div key={log.id} className="text-red-400 font-mono whitespace-pre-wrap">
+                    {log.text}
+                  </div>
+                );
+              }
+              return (
+                <span key={log.id} className="text-[#F1F5F9] font-mono whitespace-pre-wrap">
+                  {log.text}
+                </span>
+              );
+            })}
 
-            {/* Diagnostics / Stderr Section */}
-            {(activeTab === 'all' || activeTab === 'stderr') && result.stderr && (
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase font-bold tracking-wider text-red-400 flex items-center gap-1.5 select-none">
-                  <AlertCircle className="w-3 h-3 text-red-400" />
-                  <span>Compiler Warnings & Error Diagnostics:</span>
-                </div>
-                <pre className="whitespace-pre-wrap font-mono text-red-300 bg-red-950/40 p-3 rounded-lg border border-red-900/60 overflow-x-auto shadow-inner">
-                  {result.stderr}
-                </pre>
-              </div>
+            {/* Pulsing indicator when actively executing */}
+            {isRunning && (
+              <span className="inline-block w-2 h-4 bg-sky-400 ml-1 animate-pulse align-middle" />
             )}
-
-            {/* Execution Footer Summary */}
-            <div className="pt-2 border-t border-[#334155] text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2 select-none">
-              <div className="flex items-center gap-2">
-                <span>Process exited with code {result.exitCode ?? 0}</span>
-                <span>•</span>
-                <span>Runtime: {result.executionTimeMs ?? 0}ms</span>
-                {result.compilationTimeMs ? (
-                  <>
-                    <span>•</span>
-                    <span>Compile: {result.compilationTimeMs}ms</span>
-                  </>
-                ) : null}
-              </div>
-              <div>{result.timestamp}</div>
-            </div>
           </div>
         )}
+      </div>
+
+      {/* Interactive Prompt & Input Box at Bottom of Terminal */}
+      <div
+        id="terminal-input-bar"
+        className={`p-2 sm:p-2.5 border-t select-none transition-colors shrink-0 ${
+          isRunning
+            ? 'bg-[#10172A] border-sky-500/40 shadow-inner'
+            : 'bg-[#0E1526] border-slate-800'
+        }`}
+      >
+        <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
+          {/* Prompt prefix symbol */}
+          <div className="flex items-center gap-1 text-xs font-mono font-bold text-sky-400 shrink-0 pl-1">
+            <span className={isRunning ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}>●</span>
+            <span className="text-slate-300">❯</span>
+          </div>
+
+          {/* User Input Input Field */}
+          <input
+            ref={inputRef}
+            id="terminal-user-input"
+            type="text"
+            value={currentInput}
+            onChange={(e) => setCurrentInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isRunning
+                ? 'Type input and press Enter (e.g. John, 42, yes)...'
+                : 'Click RUN to start interactive program (or press Ctrl+Enter)'
+            }
+            className={`flex-1 bg-transparent text-xs font-mono text-white placeholder-slate-500 outline-none transition-all ${
+              isRunning ? 'cursor-text' : 'cursor-default opacity-80'
+            }`}
+          />
+
+          {/* Action Button: Send Input or Run */}
+          {isRunning ? (
+            <button
+              id="terminal-send-input-btn"
+              type="submit"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0 min-h-[36px] sm:min-h-0"
+              title="Send line to program stdin (Enter)"
+            >
+              <span>Send</span>
+              <CornerDownLeft className="w-3 h-3" />
+            </button>
+          ) : (
+            <button
+              id="terminal-start-run-btn"
+              type="button"
+              onClick={onRunCode}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition-all active:scale-95 shrink-0 min-h-[36px] sm:min-h-0"
+            >
+              <Play className="w-3 h-3 fill-white" />
+              <span>RUN</span>
+            </button>
+          )}
+        </form>
+
+        {/* Mobile / Quick Helper Bar */}
+        <div className="flex items-center justify-between pt-1 px-1 text-[10px] text-slate-400">
+          <span className="hidden sm:inline">
+            {isRunning ? 'Interactive Mode: Press Enter to send input' : 'Keyboard shortcut: Ctrl + Enter to run'}
+          </span>
+          {isRunning && (
+            <span className="text-emerald-400 font-mono">
+              Process active
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

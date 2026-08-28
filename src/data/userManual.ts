@@ -2,87 +2,111 @@ import { UserManualTopic } from '../types';
 
 export const USER_MANUAL_TOPICS: UserManualTopic[] = [
   {
-    id: 'getting-started',
-    title: '1. Getting Started & IDE Layout',
-    icon: 'Layout',
-    category: 'Overview',
-    content: `The Online IDE provides a high-performance environment for coding, compiling, and running programs in C, C++, Java, and Python. The interface features a modern split-pane design optimized for productivity:
-- Left Pane (Editor): Code area with line numbers, syntax styling, search/replace, font zooming, and a custom Standard Input (stdin) panel.
-- Right Pane (Output & Tools): Terminal output, compiler diagnostics, and Google Docs export.
-- Top Bar: Instant language selector, code reset, Run button, theme toggle, and Google authentication.`,
+    id: 'interactive-terminal',
+    title: '1. Live Interactive Terminal & Input',
+    icon: 'Terminal',
+    category: 'Interactive I/O',
+    content: `SyntaxHub features a real-time interactive terminal similar to modern desktop IDEs (VS Code, CLion, PyCharm). Instead of entering batch inputs upfront, you interact directly with your program while it is running:
+- When you click RUN (or press Ctrl + Enter), your program starts streaming output immediately.
+- If your code uses prompt statements (e.g. scanf, std::cin, Scanner, input()), the interactive prompt line at the bottom of the terminal is ready for you.
+- Simply type your answer or input and press Enter to send it in real time to the running process.`,
     bulletPoints: [
-      'Select any of the 4 languages (C, C++, Java, Python) from the top bar.',
-      'Load pre-built starter templates for algorithms, data structures, and interactive I/O.',
-      'Switch between Dark Theme and Bright Theme anytime using the theme button.',
-    ],
-  },
-  {
-    id: 'language-specifications',
-    title: '2. Language Runtimes & Compilers',
-    icon: 'Cpu',
-    category: 'Compilers',
-    content: `Each language is configured with modern toolchains and optimized compilation flags:`,
-    bulletPoints: [
-      'C (C17): Compiled with GCC 12 (-O2 -Wall -std=c17 -lm) with math library support.',
-      'C++ (C++17): Compiled with G++ 12 (-O2 -Wall -std=c++17 -lm) with full STL support.',
-      'Java (Java 17 LTS): Requires class with main method (e.g., public class Main { public static void main(String[] args) }).',
-      'Python (Python 3.10): Executed in unbuffered mode (-u) with full standard library support.',
-    ],
-  },
-  {
-    id: 'stdin-input',
-    title: '3. Standard Input (stdin) Guide',
-    icon: 'FileInput',
-    category: 'Input/Output',
-    content: `Many programs (competitive programming, user queries, calculators) require user input during execution. Since code runs on the server, you provide your input in advance inside the "Custom Input (stdin)" tab before clicking Run.`,
-    bulletPoints: [
-      'C: Read tokens with scanf("%s", str) or scanf("%d", &num).',
-      'C++: Read with std::cin >> var or std::getline(std::cin, str).',
-      'Java: Use java.util.Scanner scanner = new Scanner(System.in);',
-      'Python: Read with input() or sys.stdin.read().splitlines().',
+      'C: Use scanf("%s", name) or scanf("%d", &n) with fflush(stdout) on prompts.',
+      'C++: Use std::cin >> var or std::getline(std::cin, str) with std::flush.',
+      'Java: Use java.util.Scanner scanner = new Scanner(System.in).',
+      'Python: Use name = input("Enter name: ") or sys.stdin.readline().',
+      'Press Enter to submit input to the active program or use history with Up/Down arrows.',
     ],
     codeSample: {
       language: 'cpp',
-      code: `// C++ Stdin Example
+      code: `// Interactive C++ Example
 #include <iostream>
+#include <string>
+
 int main() {
-    int a, b;
-    if (std::cin >> a >> b) {
-        std::cout << "Sum: " << (a + b) << std::endl;
-    }
+    std::string name;
+    int age;
+    std::cout << "Enter name: " << std::flush;
+    std::cin >> name;
+    std::cout << "Enter age: " << std::flush;
+    std::cin >> age;
+    std::cout << "Welcome, " << name << " (" << age << " yrs old)!" << std::endl;
     return 0;
 }`,
     },
   },
   {
-    id: 'google-docs-export',
-    title: '4. Google Docs Integration & Export',
-    icon: 'FileText',
+    id: 'customizable-layout',
+    title: '2. Customizable Layout & Sizing',
+    icon: 'Layout',
     category: 'Workspace',
-    content: `You can convert and export your entire workspace (source code, runtime parameters, standard input, compiler output, and timestamp) directly into a formatted Google Document:
-1. Click the "Export to Google Docs" button in the top bar or output console.
-2. Sign in with your Google account using the official Google Sign-In prompt.
-3. Review the custom document title and click "Export to Google Docs".
-4. The system creates the Google Doc in your Google Drive and gives you a direct link to open and edit it in Google Docs.`,
+    content: `You can customize and resize the workspace to suit your coding style:
+- Drag the splitter divider bar left/right (or up/down) to adjust the exact width/height ratio between the Code Editor and Terminal.
+- Use the Layout menu in the top bar to switch between Side-by-Side (Horizontal) and Stacked (Vertical) layouts.
+- Choose from instant size presets (50/50 balanced, 70/30 code-focused, 30/70 terminal-focused).
+- Maximize the Editor or Terminal into full-screen mode anytime.`,
     bulletPoints: [
-      'Formatted with styled headers, monospace code blocks, and execution statistics.',
-      'OAuth tokens are kept securely in-memory and are never stored in localStorage.',
-      'Keeps a history of recently exported documents for quick reopening.',
+      'Draggable splitter with smooth live resizing and percentage indicator.',
+      'Orientation toggle: Horizontal split vs. Vertical stacked.',
+      'Size presets: 50:50, 70:30, and 30:70 ratios.',
+      'Fullscreen buttons on both Editor and Terminal panes.',
+    ],
+  },
+  {
+    id: 'mobile-compatibility',
+    title: '3. Mobile Screening & Touch Compatibility',
+    icon: 'Smartphone',
+    category: 'Mobile',
+    content: `SyntaxHub is tailored for mobile screens and tablets:
+- On mobile devices, a segmented tab switcher lets you seamlessly navigate between the Code Editor and the Terminal.
+- When you tap RUN inside the mobile editor, the app automatically switches to the Terminal tab so you see real-time output and prompts.
+- The interactive input line is sized for touch keyboards with high-contrast buttons and responsive feedback.`,
+    bulletPoints: [
+      'Touch-friendly 44px+ targets and dedicated mobile tab bar.',
+      'Auto-switch to Terminal upon executing code on mobile.',
+      'Quick Send button for mobile on-screen keyboard support.',
+    ],
+  },
+  {
+    id: 'runtimes-compilers',
+    title: '4. Compilers & Native Toolchains',
+    icon: 'Cpu',
+    category: 'Compilers',
+    content: `Programs are compiled and executed using high-performance server-side compilers:`,
+    bulletPoints: [
+      'C (C17): Compiled with GCC 12 (-O2 -Wall -std=c17 -lm) with math library.',
+      'C++ (C++17): Compiled with G++ 12 (-O2 -Wall -std=c++17 -lm) with full STL.',
+      'Java (Java 17 LTS): Compiled with javac and executed on OpenJDK 17 with 256MB memory cap.',
+      'Python (Python 3.10): Executed with unbuffered I/O (python3 -u).',
+    ],
+  },
+  {
+    id: 'pdf-export',
+    title: '5. PDF Document Export',
+    icon: 'FileDown',
+    category: 'Export',
+    content: `You can instantly download a formatted PDF report of your source code and interactive terminal transcript:
+- Click the "Export PDF" button in the header or terminal toolbar.
+- Customize title, assignment notes, color theme, and orientation.
+- Save directly to your local device without any login or account requirement.`,
+    bulletPoints: [
+      'Complete transcript of interactive inputs, outputs, and compiler status.',
+      'Line-numbered syntax highlighting in Light, Dark, or Monochrome styles.',
+      '100% offline generation with zero sign-in required.',
     ],
   },
   {
     id: 'keyboard-shortcuts',
-    title: '5. Keyboard Shortcuts',
+    title: '6. Keyboard Shortcuts',
     icon: 'Keyboard',
     category: 'Shortcuts',
-    content: `Boost your development speed with essential keyboard shortcuts:`,
+    content: `Productivity shortcuts for rapid development:`,
     bulletPoints: [
-      'Ctrl + Enter (Cmd + Enter): Run & Compile current code',
-      'Ctrl + S (Cmd + S): Open Google Docs Export dialog',
-      'Ctrl + F (Cmd + F): Open Search & Replace bar inside the editor',
-      'Tab: Insert 4-space indentation without losing focus',
-      'Shift + Tab: Outdent current line',
-      'Ctrl + Shift + R: Reset editor to default language template',
+      'Ctrl + Enter (Cmd + Enter): Run code in interactive terminal',
+      'Ctrl + F (Cmd + F): Open Search & Replace inside the editor',
+      'Enter (in terminal): Send input line to running program',
+      'Up / Down Arrows (in terminal input): Browse previously sent input history',
+      'Tab / Shift + Tab: Indent / Outdent code by 4 spaces',
     ],
   },
 ];

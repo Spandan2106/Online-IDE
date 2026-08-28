@@ -1,9 +1,9 @@
-import express from 'express';
+import express, { Response } from 'express';
 import path from 'path';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import os from 'os';
-import { spawn } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
@@ -15,7 +15,7 @@ const app = express();
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize Gemini Client
+// Initialize Gemini Client (for server-side capabilities if needed)
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || '',
   httpOptions: {
@@ -25,7 +25,70 @@ const ai = new GoogleGenAI({
   },
 });
 
-// Helper for executing commands with timeout and stdin
+// Interface for interactive terminal session
+interface TerminalSessionLog {
+  type: 'stdout' | 'stderr' | 'stdin' | 'system';
+  text: string;
+  timestamp: number;
+}
+
+interface ActiveTerminalSession {
+  sessionId: string;
+  language: string;
+  child?: ChildProcess;
+  workDir: string;
+  startTime: number;
+  compilationTimeMs: number;
+  executionTimeMs?: number;
+  status: 'running' | 'completed' | 'compile_error' | 'runtime_error' | 'timeout' | 'killed';
+  exitCode?: number | null;
+  logs: TerminalSessionLog[];
+  clients: Set<Response>;
+  timeoutTimer?: NodeJS.Timeout;
+  cleanupTimer?: NodeJS.Timeout;
+}
+
+const activeTerminalSessions = new Map<string, ActiveTerminalSession>();
+
+function broadcastSessionEvent(session: ActiveTerminalSession, eventName: string, data: any) {
+  const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of session.clients) {
+    try {
+      client.write(payload);
+    } catch {
+      session.clients.delete(client);
+    }
+  }
+}
+
+// Cleanup helper for sessions and directories
+async function cleanupSession(sessionId: string) {
+  const session = activeTerminalSessions.get(sessionId);
+  if (!session) return;
+
+  if (session.timeoutTimer) clearTimeout(session.timeoutTimer);
+  if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
+
+  if (session.child && !session.child.killed) {
+    try {
+      session.child.kill('SIGKILL');
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    if (existsSync(session.workDir)) {
+      await fs.rm(session.workDir, { recursive: true, force: true });
+    }
+  } catch {
+    // ignore
+  }
+
+  activeTerminalSessions.delete(sessionId);
+}
+
+// Standard synchronous process runner (for compilers and batch runs)
 interface RunResult {
   stdout: string;
   stderr: string;
@@ -51,6 +114,7 @@ function runProcess(
       cwd,
       env: {
         ...process.env,
+        PYTHONUNBUFFERED: '1',
         PATH: process.env.PATH || '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
       },
     });
@@ -82,7 +146,6 @@ function runProcess(
 
     child.stdout?.on('data', (data) => {
       stdout += data.toString();
-      // Cap output size at 500KB
       if (stdout.length > 500000) {
         stdout = stdout.slice(0, 500000) + '\n[Output truncated: exceeded 500KB]';
         child.kill();
@@ -130,7 +193,399 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 2. Code Execution Endpoint
+// 2. Interactive Terminal Start Endpoint
+app.post('/api/terminal/start', async (req, res) => {
+  const { language, code } = req.body;
+
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'Source code is required' });
+  }
+
+  const sessionId = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const workDir = path.join(os.tmpdir(), sessionId);
+
+  try {
+    await fs.mkdir(workDir, { recursive: true });
+    const startTime = Date.now();
+    let compilationTimeMs = 0;
+
+    let execCmd = '';
+    let execArgs: string[] = [];
+
+    // Compilation stage for C, C++, and Java
+    if (language === 'c') {
+      const sourceFile = path.join(workDir, 'main.c');
+      await fs.writeFile(sourceFile, code, 'utf-8');
+
+      const compileStart = Date.now();
+      const compileRes = await runProcess('gcc', ['-O2', '-Wall', '-std=c17', 'main.c', '-o', 'program', '-lm'], workDir, '', 8000);
+      compilationTimeMs = Date.now() - compileStart;
+
+      if (compileRes.exitCode !== 0) {
+        const session: ActiveTerminalSession = {
+          sessionId,
+          language,
+          workDir,
+          startTime,
+          compilationTimeMs,
+          status: 'compile_error',
+          exitCode: compileRes.exitCode,
+          logs: [
+            { type: 'system', text: `Compiling main.c with GCC 12...\n`, timestamp: startTime },
+            { type: 'stderr', text: compileRes.stderr || 'Compilation failed\n', timestamp: Date.now() },
+            { type: 'system', text: `\n[Compilation Failed with exit code ${compileRes.exitCode}]\n`, timestamp: Date.now() },
+          ],
+          clients: new Set(),
+        };
+        activeTerminalSessions.set(sessionId, session);
+        return res.json({
+          sessionId,
+          status: 'compile_error',
+          compilationTimeMs,
+          stderr: compileRes.stderr,
+          exitCode: compileRes.exitCode,
+        });
+      }
+
+      execCmd = path.join(workDir, 'program');
+      execArgs = [];
+
+    } else if (language === 'cpp') {
+      const sourceFile = path.join(workDir, 'main.cpp');
+      await fs.writeFile(sourceFile, code, 'utf-8');
+
+      const compileStart = Date.now();
+      const compileRes = await runProcess('g++', ['-O2', '-Wall', '-std=c++17', 'main.cpp', '-o', 'program', '-lm'], workDir, '', 8000);
+      compilationTimeMs = Date.now() - compileStart;
+
+      if (compileRes.exitCode !== 0) {
+        const session: ActiveTerminalSession = {
+          sessionId,
+          language,
+          workDir,
+          startTime,
+          compilationTimeMs,
+          status: 'compile_error',
+          exitCode: compileRes.exitCode,
+          logs: [
+            { type: 'system', text: `Compiling main.cpp with G++ 12...\n`, timestamp: startTime },
+            { type: 'stderr', text: compileRes.stderr || 'Compilation failed\n', timestamp: Date.now() },
+            { type: 'system', text: `\n[Compilation Failed with exit code ${compileRes.exitCode}]\n`, timestamp: Date.now() },
+          ],
+          clients: new Set(),
+        };
+        activeTerminalSessions.set(sessionId, session);
+        return res.json({
+          sessionId,
+          status: 'compile_error',
+          compilationTimeMs,
+          stderr: compileRes.stderr,
+          exitCode: compileRes.exitCode,
+        });
+      }
+
+      execCmd = path.join(workDir, 'program');
+      execArgs = [];
+
+    } else if (language === 'java') {
+      const classMatch = code.match(/public\s+class\s+([A-Za-z0-9_]+)/) || code.match(/class\s+([A-Za-z0-9_]+)/);
+      const className = classMatch ? classMatch[1] : 'Main';
+      const sourceFile = path.join(workDir, `${className}.java`);
+      await fs.writeFile(sourceFile, code, 'utf-8');
+
+      const compileStart = Date.now();
+      const compileRes = await runProcess('javac', [`${className}.java`], workDir, '', 8000);
+      compilationTimeMs = Date.now() - compileStart;
+
+      if (compileRes.exitCode !== 0) {
+        const session: ActiveTerminalSession = {
+          sessionId,
+          language,
+          workDir,
+          startTime,
+          compilationTimeMs,
+          status: 'compile_error',
+          exitCode: compileRes.exitCode,
+          logs: [
+            { type: 'system', text: `Compiling ${className}.java with javac...\n`, timestamp: startTime },
+            { type: 'stderr', text: compileRes.stderr || 'Java compilation failed\n', timestamp: Date.now() },
+            { type: 'system', text: `\n[Java Compilation Failed]\n`, timestamp: Date.now() },
+          ],
+          clients: new Set(),
+        };
+        activeTerminalSessions.set(sessionId, session);
+        return res.json({
+          sessionId,
+          status: 'compile_error',
+          compilationTimeMs,
+          stderr: compileRes.stderr,
+          exitCode: compileRes.exitCode,
+        });
+      }
+
+      execCmd = 'java';
+      execArgs = ['-Xmx256m', className];
+
+    } else if (language === 'python') {
+      const sourceFile = path.join(workDir, 'main.py');
+      await fs.writeFile(sourceFile, code, 'utf-8');
+
+      execCmd = 'python3';
+      execArgs = ['-u', 'main.py'];
+    } else {
+      return res.status(400).json({ error: `Unsupported language: ${language}` });
+    }
+
+    // Spawn the interactive child process
+    const child = spawn(execCmd, execArgs, {
+      cwd: workDir,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: '1',
+        PATH: process.env.PATH || '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+      },
+    });
+
+    const session: ActiveTerminalSession = {
+      sessionId,
+      language,
+      child,
+      workDir,
+      startTime: Date.now(),
+      compilationTimeMs,
+      status: 'running',
+      logs: [
+        {
+          type: 'system',
+          text: `[Process started: ${language.toUpperCase()} runtime]\n`,
+          timestamp: Date.now(),
+        },
+      ],
+      clients: new Set(),
+    };
+
+    // 60-second interactive execution safety timeout
+    session.timeoutTimer = setTimeout(() => {
+      if (session.status === 'running') {
+        session.status = 'timeout';
+        const timeoutLog: TerminalSessionLog = {
+          type: 'system',
+          text: '\n[Execution timed out after 60s of inactivity]\n',
+          timestamp: Date.now(),
+        };
+        session.logs.push(timeoutLog);
+        broadcastSessionEvent(session, 'data', timeoutLog);
+        broadcastSessionEvent(session, 'exit', {
+          exitCode: -1,
+          status: 'timeout',
+          executionTimeMs: Date.now() - session.startTime,
+        });
+        if (session.child) {
+          try {
+            session.child.kill('SIGKILL');
+          } catch {}
+        }
+      }
+    }, 60000);
+
+    // Capture child stdout
+    child.stdout?.on('data', (chunk) => {
+      const text = chunk.toString();
+      const logEntry: TerminalSessionLog = {
+        type: 'stdout',
+        text,
+        timestamp: Date.now(),
+      };
+      session.logs.push(logEntry);
+      broadcastSessionEvent(session, 'data', logEntry);
+    });
+
+    // Capture child stderr
+    child.stderr?.on('data', (chunk) => {
+      const text = chunk.toString();
+      const logEntry: TerminalSessionLog = {
+        type: 'stderr',
+        text,
+        timestamp: Date.now(),
+      };
+      session.logs.push(logEntry);
+      broadcastSessionEvent(session, 'data', logEntry);
+    });
+
+    // Handle process close / exit
+    child.on('close', (code) => {
+      if (session.timeoutTimer) clearTimeout(session.timeoutTimer);
+      const executionTimeMs = Date.now() - session.startTime;
+      session.executionTimeMs = executionTimeMs;
+      session.exitCode = code ?? 0;
+      session.status = code === 0 ? 'completed' : 'runtime_error';
+
+      const exitLog: TerminalSessionLog = {
+        type: 'system',
+        text: `\n[Process completed with exit code ${code ?? 0} in ${executionTimeMs}ms]\n`,
+        timestamp: Date.now(),
+      };
+      session.logs.push(exitLog);
+      broadcastSessionEvent(session, 'data', exitLog);
+      broadcastSessionEvent(session, 'exit', {
+        exitCode: code ?? 0,
+        status: session.status,
+        executionTimeMs,
+      });
+
+      // Retain session logs for 30 seconds before freeing directory
+      session.cleanupTimer = setTimeout(() => {
+        cleanupSession(sessionId);
+      }, 30000);
+    });
+
+    child.on('error', (err) => {
+      if (session.timeoutTimer) clearTimeout(session.timeoutTimer);
+      session.status = 'runtime_error';
+      const errLog: TerminalSessionLog = {
+        type: 'stderr',
+        text: `\nProcess error: ${err.message}\n`,
+        timestamp: Date.now(),
+      };
+      session.logs.push(errLog);
+      broadcastSessionEvent(session, 'data', errLog);
+      broadcastSessionEvent(session, 'exit', {
+        exitCode: 1,
+        status: 'runtime_error',
+        executionTimeMs: Date.now() - session.startTime,
+      });
+    });
+
+    activeTerminalSessions.set(sessionId, session);
+
+    return res.json({
+      sessionId,
+      status: 'running',
+      compilationTimeMs,
+    });
+  } catch (err: any) {
+    console.error('Terminal start error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to start terminal session' });
+  }
+});
+
+// 3. SSE Stream Endpoint for real-time terminal output
+app.get('/api/terminal/stream', (req, res) => {
+  const sessionId = req.query.sessionId as string;
+  if (!sessionId) {
+    return res.status(400).send('Session ID is required');
+  }
+
+  const session = activeTerminalSessions.get(sessionId);
+  if (!session) {
+    return res.status(404).send('Session not found or expired');
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send all existing logs immediately
+  for (const log of session.logs) {
+    res.write(`event: data\ndata: ${JSON.stringify(log)}\n\n`);
+  }
+
+  if (session.status !== 'running') {
+    res.write(
+      `event: exit\ndata: ${JSON.stringify({
+        exitCode: session.exitCode ?? (session.status === 'completed' ? 0 : 1),
+        status: session.status,
+        executionTimeMs: session.executionTimeMs ?? 0,
+      })}\n\n`
+    );
+  }
+
+  session.clients.add(res);
+
+  req.on('close', () => {
+    session.clients.delete(res);
+  });
+});
+
+// 4. Terminal Interactive User Input (stdin)
+app.post('/api/terminal/input', (req, res) => {
+  const { sessionId, input } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Session ID is required' });
+  }
+
+  const session = activeTerminalSessions.get(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Active terminal session not found' });
+  }
+
+  if (session.status !== 'running' || !session.child || !session.child.stdin || !session.child.stdin.writable) {
+    return res.status(400).json({ error: 'Process is not running or input channel is closed' });
+  }
+
+  const textToSend = typeof input === 'string' ? input : '';
+  const inputLog: TerminalSessionLog = {
+    type: 'stdin',
+    text: textToSend + '\n',
+    timestamp: Date.now(),
+  };
+
+  session.logs.push(inputLog);
+  broadcastSessionEvent(session, 'data', inputLog);
+
+  try {
+    session.child.stdin.write(textToSend + '\n');
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Failed to write to process stdin: ' + err.message });
+  }
+});
+
+// 5. Terminal Stop / Kill Endpoint
+app.post('/api/terminal/stop', (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Session ID is required' });
+  }
+
+  const session = activeTerminalSessions.get(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  if (session.child && !session.child.killed) {
+    try {
+      session.child.kill('SIGINT');
+      setTimeout(() => {
+        if (session.child && !session.child.killed) {
+          try {
+            session.child.kill('SIGKILL');
+          } catch {}
+        }
+      }, 500);
+    } catch {}
+  }
+
+  session.status = 'killed';
+  const killLog: TerminalSessionLog = {
+    type: 'system',
+    text: '\n[Process stopped by user]\n',
+    timestamp: Date.now(),
+  };
+  session.logs.push(killLog);
+  broadcastSessionEvent(session, 'data', killLog);
+  broadcastSessionEvent(session, 'exit', {
+    exitCode: 130,
+    status: 'killed',
+    executionTimeMs: Date.now() - session.startTime,
+  });
+
+  return res.json({ success: true });
+});
+
+// 6. Direct Batch Execution Endpoint (fallback & batch execution)
 app.post('/api/execute', async (req, res) => {
   const { language, code, stdin = '', timeoutMs = 8000 } = req.body;
 
@@ -150,8 +605,7 @@ app.post('/api/execute', async (req, res) => {
       const binFile = path.join(workDir, 'program');
       await fs.writeFile(sourceFile, code, 'utf-8');
 
-      // Compile
-      const compileRes = await runProcess('gcc', ['-O2', '-Wall', '-std=c17', 'main.c', '-o', 'program', '-lm'], workDir, '', 5000);
+      const compileRes = await runProcess('gcc', ['-O2', '-Wall', '-std=c17', 'main.c', '-o', 'program', '-lm'], workDir, '', 6000);
       if (compileRes.exitCode !== 0) {
         return res.json({
           status: 'compile_error',
@@ -164,7 +618,6 @@ app.post('/api/execute', async (req, res) => {
         });
       }
 
-      // Execute
       const execRes = await runProcess(binFile, [], workDir, stdin, timeoutMs);
       return res.json({
         status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
@@ -181,7 +634,6 @@ app.post('/api/execute', async (req, res) => {
       const binFile = path.join(workDir, 'program');
       await fs.writeFile(sourceFile, code, 'utf-8');
 
-      // Compile
       const compileRes = await runProcess('g++', ['-O2', '-Wall', '-std=c++17', 'main.cpp', '-o', 'program', '-lm'], workDir, '', 6000);
       if (compileRes.exitCode !== 0) {
         return res.json({
@@ -195,7 +647,6 @@ app.post('/api/execute', async (req, res) => {
         });
       }
 
-      // Execute
       const execRes = await runProcess(binFile, [], workDir, stdin, timeoutMs);
       return res.json({
         status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
@@ -223,86 +674,34 @@ app.post('/api/execute', async (req, res) => {
       });
 
     } else if (language === 'java') {
-      // Find main class name or default to Main
       const classMatch = code.match(/public\s+class\s+([A-Za-z0-9_]+)/) || code.match(/class\s+([A-Za-z0-9_]+)/);
       const className = classMatch ? classMatch[1] : 'Main';
       const sourceFile = path.join(workDir, `${className}.java`);
       await fs.writeFile(sourceFile, code, 'utf-8');
 
-      // Check if javac is available
-      const checkJavac = await runProcess('which', ['javac'], workDir, '', 2000);
-      if (checkJavac.exitCode === 0) {
-        // Compile Java
-        const compileRes = await runProcess('javac', [`${className}.java`], workDir, '', 7000);
-        if (compileRes.exitCode !== 0) {
-          return res.json({
-            status: 'compile_error',
-            stdout: '',
-            stderr: compileRes.stderr || 'Java compilation failed',
-            exitCode: compileRes.exitCode,
-            compilationTimeMs: compileRes.executionTimeMs,
-            executionTimeMs: 0,
-            totalTimeMs: Date.now() - overallStartTime,
-          });
-        }
-
-        // Execute Java
-        const execRes = await runProcess('java', ['-Xmx256m', className], workDir, stdin, timeoutMs);
+      const compileRes = await runProcess('javac', [`${className}.java`], workDir, '', 7000);
+      if (compileRes.exitCode !== 0) {
         return res.json({
-          status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
-          stdout: execRes.stdout,
-          stderr: execRes.stderr,
-          exitCode: execRes.exitCode,
+          status: 'compile_error',
+          stdout: '',
+          stderr: compileRes.stderr || 'Java compilation failed',
+          exitCode: compileRes.exitCode,
           compilationTimeMs: compileRes.executionTimeMs,
-          executionTimeMs: execRes.executionTimeMs,
+          executionTimeMs: 0,
           totalTimeMs: Date.now() - overallStartTime,
         });
-      } else {
-        // AI Fallback for Java execution simulation if JDK is not present in local container
-        try {
-          const aiResponse = await ai.models.generateContent({
-            model: 'gemini-3.7-flash',
-            contents: `You are a strict Java 17 execution sandbox.
-Given the following Java code and standard input, simulate the exact output that standard \`javac\` and \`java\` would produce.
-If there are syntax or compilation errors, output only the javac error format in the compilation/stderr section.
-If it succeeds, provide the exact stdout.
-
-Code:
-\`\`\`java
-${code}
-\`\`\`
-
-Standard Input:
-\`\`\`
-${stdin}
-\`\`\`
-
-Respond in strict JSON with the schema:
-{
-  "status": "success" | "compile_error" | "runtime_error",
-  "stdout": string,
-  "stderr": string,
-  "exitCode": number
-}`,
-            config: {
-              responseMimeType: 'application/json',
-            },
-          });
-
-          const parsed = JSON.parse(aiResponse.text || '{}');
-          return res.json({
-            status: parsed.status || 'success',
-            stdout: parsed.stdout || '',
-            stderr: parsed.stderr || '',
-            exitCode: parsed.exitCode ?? 0,
-            compilationTimeMs: 40,
-            executionTimeMs: Date.now() - overallStartTime,
-            totalTimeMs: Date.now() - overallStartTime,
-          });
-        } catch (aiErr: any) {
-          return res.status(500).json({ error: 'Execution engine error: ' + aiErr.message });
-        }
       }
+
+      const execRes = await runProcess('java', ['-Xmx256m', className], workDir, stdin, timeoutMs);
+      return res.json({
+        status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
+        stdout: execRes.stdout,
+        stderr: execRes.stderr,
+        exitCode: execRes.exitCode,
+        compilationTimeMs: compileRes.executionTimeMs,
+        executionTimeMs: execRes.executionTimeMs,
+        totalTimeMs: Date.now() - overallStartTime,
+      });
     } else {
       return res.status(400).json({ error: `Unsupported language: ${language}` });
     }
@@ -316,97 +715,11 @@ Respond in strict JSON with the schema:
       totalTimeMs: 0,
     });
   } finally {
-    // Cleanup temporary directory
     try {
       if (existsSync(workDir)) {
         await fs.rm(workDir, { recursive: true, force: true });
       }
-    } catch {
-      // ignore cleanup errors
-    }
-  }
-});
-
-// 3. Google Docs Export Endpoint
-app.post('/api/docs/export', async (req, res) => {
-  try {
-    const { accessToken, title, language, code, stdin = '', output = '', stderr = '', executionTimeMs = 0, timestamp = new Date().toLocaleString() } = req.body;
-
-    if (!accessToken) {
-      return res.status(401).json({ error: 'OAuth Access Token is required to export to Google Docs.' });
-    }
-
-    const docTitle = title || `[Online IDE] ${language.toUpperCase()} Code & Execution - ${new Date().toLocaleDateString()}`;
-
-    // 1. Create a blank Google Document
-    const createRes = await fetch('https://docs.googleapis.com/v1/documents', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: docTitle,
-      }),
-    });
-
-    if (!createRes.ok) {
-      const errData = await createRes.json();
-      return res.status(createRes.status).json({ error: errData.error?.message || 'Failed to create Google Document' });
-    }
-
-    const docData = await createRes.json();
-    const documentId = docData.documentId;
-
-    // 2. Prepare structured content
-    const headerSection = `ONLINE IDE CODE REPORT\n`;
-    const metaSection = `Language: ${language.toUpperCase()}\nDate: ${timestamp}\nRuntime: ${executionTimeMs}ms\nStatus: ${stderr ? 'Execution/Compilation Error' : 'Success'}\n\n`;
-    const codeHeader = `--- SOURCE CODE (${language.toUpperCase()}) ---\n`;
-    const codeBody = `${code}\n\n`;
-    const stdinHeader = stdin ? `--- STANDARD INPUT (stdin) ---\n${stdin}\n\n` : '';
-    const outputHeader = `--- EXECUTION OUTPUT ---\n`;
-    const outputBody = output ? `${output}\n` : '(No standard output)\n';
-    const errorSection = stderr ? `\n--- ERROR / DIAGNOSTICS ---\n${stderr}\n` : '';
-    const footerSection = `\nExported from Online IDE (C, C++, Java, Python)\n`;
-
-    const fullText = headerSection + metaSection + codeHeader + codeBody + stdinHeader + outputHeader + outputBody + errorSection + footerSection;
-
-    // 3. Batch update document with text and styling
-    const updateRes = await fetch(`https://docs.googleapis.com/v1/documents/${documentId}:batchUpdate`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            insertText: {
-              location: { index: 1 },
-              text: fullText,
-            },
-          },
-        ],
-      }),
-    });
-
-    if (!updateRes.ok) {
-      const updateErr = await updateRes.json();
-      console.warn('Batch update error for docs:', updateErr);
-      // Still return the created docId even if formatting had minor error
-    }
-
-    const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
-
-    return res.json({
-      success: true,
-      documentId,
-      documentUrl,
-      title: docTitle,
-    });
-  } catch (err: any) {
-    console.error('Google Docs export error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to export to Google Docs' });
+    } catch {}
   }
 });
 
