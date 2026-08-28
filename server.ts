@@ -88,6 +88,70 @@ async function cleanupSession(sessionId: string) {
   activeTerminalSessions.delete(sessionId);
 }
 
+// Augment environment PATH to detect JVM, GCC, and system toolchains
+function getAugmentedPath(): string {
+  const customPaths = [
+    process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin') : '',
+    '/usr/lib/jvm/default-jvm/bin',
+    '/usr/lib/jvm/java-21-openjdk-amd64/bin',
+    '/usr/lib/jvm/java-17-openjdk-amd64/bin',
+    '/usr/lib/jvm/java-11-openjdk-amd64/bin',
+    '/usr/lib/jvm/java-17-openjdk/bin',
+    '/usr/lib/jvm/java-11-openjdk/bin',
+    '/opt/java/openjdk/bin',
+    '/usr/local/openjdk-17/bin',
+    '/usr/local/sbin',
+    '/usr/local/bin',
+    '/usr/sbin',
+    '/usr/bin',
+    '/sbin',
+    '/bin',
+  ].filter(Boolean);
+
+  const currentPath = process.env.PATH || '';
+  const currentDirs = currentPath.split(path.delimiter);
+  const merged = Array.from(new Set([...customPaths, ...currentDirs])).join(path.delimiter);
+  return merged;
+}
+
+// Java code preparation and analysis helper
+async function prepareJavaCode(code: string, workDir: string): Promise<{
+  sourceFile: string;
+  className: string;
+  cleanCode: string;
+}> {
+  // 1. Comment out package declarations if present to avoid folder mismatch errors
+  let cleanCode = code.replace(/^\s*package\s+[^;]+;/gm, (match) => `// ${match} (package declaration adjusted for online execution)`);
+
+  // 2. Identify the target class name
+  const publicClassMatch = cleanCode.match(/public\s+class\s+([A-Za-z0-9_$]+)/);
+  let className = '';
+
+  if (publicClassMatch) {
+    className = publicClassMatch[1];
+  } else {
+    // Look for class containing the main method
+    const classWithMainMatch = cleanCode.match(/class\s+([A-Za-z0-9_$]+)[^{]*\{[\s\S]*?public\s+static\s+void\s+main/);
+    if (classWithMainMatch) {
+      className = classWithMainMatch[1];
+    } else {
+      const anyClassMatch = cleanCode.match(/class\s+([A-Za-z0-9_$]+)/);
+      className = anyClassMatch ? anyClassMatch[1] : 'Main';
+    }
+  }
+
+  // If the user code has no class definition, wrap it in a default Main class
+  if (!cleanCode.includes('class ') && !cleanCode.includes('interface ') && !cleanCode.includes('enum ')) {
+    cleanCode = `import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        ${cleanCode.split('\n').join('\n        ')}\n    }\n}`;
+    className = 'Main';
+  }
+
+  const sourceFile = path.join(workDir, `${className}.java`);
+  await fs.writeFile(sourceFile, cleanCode, 'utf-8');
+
+  return { sourceFile, className, cleanCode };
+}
+
 // Standard synchronous process runner (for compilers and batch runs)
 interface RunResult {
   stdout: string;
@@ -115,7 +179,8 @@ function runProcess(
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',
-        PATH: process.env.PATH || '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+        PATH: getAugmentedPath(),
+        JAVA_HOME: process.env.JAVA_HOME || '/usr/lib/jvm/java-17-openjdk-amd64',
       },
     });
 
@@ -160,13 +225,25 @@ function runProcess(
       }
     });
 
-    child.on('error', (err) => {
+    child.on('error', (err: any) => {
       if (!isSettled) {
         isSettled = true;
         clearTimeout(timer);
+        let errorMsg = `Execution error: ${err.message}`;
+        if (err.code === 'ENOENT') {
+          if (cmd === 'javac' || cmd === 'java') {
+            errorMsg = `Java runtime (${cmd}) is not installed or not found on this server.\n` +
+              `If deploying on Render, please deploy using Docker with the provided Dockerfile so OpenJDK 17 is installed.`;
+          } else if (cmd === 'gcc' || cmd === 'g++') {
+            errorMsg = `C/C++ compiler (${cmd}) is not installed on this server.\n` +
+              `If deploying on Render, please deploy using Docker with the provided Dockerfile so GCC 12 is installed.`;
+          } else if (cmd === 'python3') {
+            errorMsg = `Python 3 runtime is not installed on this server.`;
+          }
+        }
         resolve({
           stdout,
-          stderr: stderr + (stderr ? '\n' : '') + `Execution error: ${err.message}`,
+          stderr: stderr + (stderr ? '\n' : '') + errorMsg,
           exitCode: 1,
           executionTimeMs: Date.now() - startTime,
         });
@@ -288,13 +365,10 @@ app.post('/api/terminal/start', async (req, res) => {
       execArgs = [];
 
     } else if (language === 'java') {
-      const classMatch = code.match(/public\s+class\s+([A-Za-z0-9_]+)/) || code.match(/class\s+([A-Za-z0-9_]+)/);
-      const className = classMatch ? classMatch[1] : 'Main';
-      const sourceFile = path.join(workDir, `${className}.java`);
-      await fs.writeFile(sourceFile, code, 'utf-8');
+      const { className } = await prepareJavaCode(code, workDir);
 
       const compileStart = Date.now();
-      const compileRes = await runProcess('javac', [`${className}.java`], workDir, '', 8000);
+      const compileRes = await runProcess('javac', ['-encoding', 'UTF-8', `${className}.java`], workDir, '', 8000);
       compilationTimeMs = Date.now() - compileStart;
 
       if (compileRes.exitCode !== 0) {
@@ -324,7 +398,7 @@ app.post('/api/terminal/start', async (req, res) => {
       }
 
       execCmd = 'java';
-      execArgs = ['-Xmx256m', className];
+      execArgs = ['-Xmx256m', '-cp', '.', className];
 
     } else if (language === 'python') {
       const sourceFile = path.join(workDir, 'main.py');
@@ -342,7 +416,8 @@ app.post('/api/terminal/start', async (req, res) => {
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',
-        PATH: process.env.PATH || '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+        PATH: getAugmentedPath(),
+        JAVA_HOME: process.env.JAVA_HOME || '/usr/lib/jvm/java-17-openjdk-amd64',
       },
     });
 
@@ -674,12 +749,9 @@ app.post('/api/execute', async (req, res) => {
       });
 
     } else if (language === 'java') {
-      const classMatch = code.match(/public\s+class\s+([A-Za-z0-9_]+)/) || code.match(/class\s+([A-Za-z0-9_]+)/);
-      const className = classMatch ? classMatch[1] : 'Main';
-      const sourceFile = path.join(workDir, `${className}.java`);
-      await fs.writeFile(sourceFile, code, 'utf-8');
+      const { className } = await prepareJavaCode(code, workDir);
 
-      const compileRes = await runProcess('javac', [`${className}.java`], workDir, '', 7000);
+      const compileRes = await runProcess('javac', ['-encoding', 'UTF-8', `${className}.java`], workDir, '', 7000);
       if (compileRes.exitCode !== 0) {
         return res.json({
           status: 'compile_error',
@@ -692,7 +764,7 @@ app.post('/api/execute', async (req, res) => {
         });
       }
 
-      const execRes = await runProcess('java', ['-Xmx256m', className], workDir, stdin, timeoutMs);
+      const execRes = await runProcess('java', ['-Xmx256m', '-cp', '.', className], workDir, stdin, timeoutMs);
       return res.json({
         status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
         stdout: execRes.stdout,

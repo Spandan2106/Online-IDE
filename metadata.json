@@ -2,5 +2,7 @@
   "name": "Online Code IDE",
   "description": "An online IDE for C, C++, Java, and Python with live execution, split-pane view, dark/bright themes, user manual, and instant PDF report export.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
