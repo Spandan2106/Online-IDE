@@ -29,20 +29,6 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
     isZeroSetup: false,
     category: 'compiled',
   },
-  java: {
-    id: 'java',
-    name: 'Java',
-    extension: '.java',
-    defaultFilename: 'Main.java',
-    compiler: 'OpenJDK 17 (javac & java)',
-    version: 'Java 17 LTS',
-    iconName: 'Coffee',
-    syntaxColor: '#EA2D2E',
-    accentColor: 'from-amber-600 to-red-600',
-    description: 'Robust, platform-independent, object-oriented language with OpenJDK 17.',
-    isZeroSetup: false,
-    category: 'compiled',
-  },
   python: {
     id: 'python',
     name: 'Python',
@@ -650,102 +636,6 @@ int main() {
     },
   ],
 
-  java: [
-    {
-      id: 'java-interactive',
-      title: 'Interactive Scanner Input',
-      category: 'Interactive I/O',
-      description: 'Java 17 live user input using java.util.Scanner',
-      code: `import java.util.Scanner;
-
-public class Main {
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        
-        System.out.println("=========================================");
-        System.out.println(" Welcome to the Live Java Terminal!");
-        System.out.println("=========================================");
-        
-        System.out.print("Enter your name: ");
-        if (scanner.hasNext()) {
-            String name = scanner.next();
-            System.out.println("Hello, " + name + "! Welcome to Java 17 LTS.\\n");
-        }
-        
-        System.out.print("Enter a number to check if it is Prime: ");
-        if (scanner.hasNextInt()) {
-            int num = scanner.nextInt();
-            boolean isPrime = num > 1;
-            for (int i = 2; i * i <= num; i++) {
-                if (num % i == 0) {
-                    isPrime = false;
-                    break;
-                }
-            }
-            System.out.println(">> " + num + (isPrime ? " is a PRIME number!" : " is NOT a prime number."));
-        }
-        
-        scanner.close();
-    }
-}
-`,
-    },
-    {
-      id: 'java-hello',
-      title: 'Hello World',
-      category: 'Basics',
-      description: 'Standard Java 17 class and main entry point',
-      code: `public class Main {
-    public static void main(String[] args) {
-        System.out.println("=========================================");
-        System.out.println(" Hello, World from Java 17 LTS!");
-        System.out.println("=========================================");
-        System.out.println("SyntaxHub IDE executes Java natively with OpenJDK 17.");
-    }
-}
-`,
-    },
-    {
-      id: 'java-oop',
-      title: 'Object-Oriented Programming (OOP)',
-      category: 'OOP',
-      description: 'Classes, inheritance, and encapsulation in Java',
-      code: `class Animal {
-    protected String name;
-    
-    public Animal(String name) {
-        this.name = name;
-    }
-    
-    public void speak() {
-        System.out.println(name + " makes a sound.");
-    }
-}
-
-class Dog extends Animal {
-    private String breed;
-    
-    public Dog(String name, String breed) {
-        super(name);
-        this.breed = breed;
-    }
-    
-    @Override
-    public void speak() {
-        System.out.println(name + " (" + breed + ") barks: Woof! Woof!");
-    }
-}
-
-public class Main {
-    public static void main(String[] args) {
-        Animal myDog = new Dog("Buddy", "Golden Retriever");
-        myDog.speak();
-    }
-}
-`,
-    },
-  ],
-
   python: [
     {
       id: 'python-interactive',
@@ -784,7 +674,6 @@ print("SyntaxHub IDE is fast, flexible, and interactive.")
 export const DEFAULT_TEMPLATES: Record<SupportedLanguage, string> = {
   c: TEMPLATES_BY_LANGUAGE.c[0].code,
   cpp: TEMPLATES_BY_LANGUAGE.cpp[0].code,
-  java: TEMPLATES_BY_LANGUAGE.java[0].code,
   python: TEMPLATES_BY_LANGUAGE.python[0].code,
   javascript: TEMPLATES_BY_LANGUAGE.javascript[0].code,
   typescript: TEMPLATES_BY_LANGUAGE.typescript[0].code,

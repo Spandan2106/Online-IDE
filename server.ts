@@ -89,18 +89,9 @@ async function cleanupSession(sessionId: string) {
   activeTerminalSessions.delete(sessionId);
 }
 
-// Augment environment PATH to detect JVM, GCC, and system toolchains
+// Augment environment PATH to detect GCC and system toolchains
 function getAugmentedPath(): string {
   const customPaths = [
-    process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin') : '',
-    '/usr/lib/jvm/default-jvm/bin',
-    '/usr/lib/jvm/java-21-openjdk-amd64/bin',
-    '/usr/lib/jvm/java-17-openjdk-amd64/bin',
-    '/usr/lib/jvm/java-11-openjdk-amd64/bin',
-    '/usr/lib/jvm/java-17-openjdk/bin',
-    '/usr/lib/jvm/java-11-openjdk/bin',
-    '/opt/java/openjdk/bin',
-    '/usr/local/openjdk-17/bin',
     '/usr/local/sbin',
     '/usr/local/bin',
     '/usr/sbin',
@@ -113,44 +104,6 @@ function getAugmentedPath(): string {
   const currentDirs = currentPath.split(path.delimiter);
   const merged = Array.from(new Set([...customPaths, ...currentDirs])).join(path.delimiter);
   return merged;
-}
-
-// Java code preparation and analysis helper
-async function prepareJavaCode(code: string, workDir: string): Promise<{
-  sourceFile: string;
-  className: string;
-  cleanCode: string;
-}> {
-  // 1. Comment out package declarations if present to avoid folder mismatch errors
-  let cleanCode = code.replace(/^\s*package\s+[^;]+;/gm, (match) => `// ${match} (package declaration adjusted for online execution)`);
-
-  // 2. Identify the target class name
-  const publicClassMatch = cleanCode.match(/public\s+class\s+([A-Za-z0-9_$]+)/);
-  let className = '';
-
-  if (publicClassMatch) {
-    className = publicClassMatch[1];
-  } else {
-    // Look for class containing the main method
-    const classWithMainMatch = cleanCode.match(/class\s+([A-Za-z0-9_$]+)[^{]*\{[\s\S]*?public\s+static\s+void\s+main/);
-    if (classWithMainMatch) {
-      className = classWithMainMatch[1];
-    } else {
-      const anyClassMatch = cleanCode.match(/class\s+([A-Za-z0-9_$]+)/);
-      className = anyClassMatch ? anyClassMatch[1] : 'Main';
-    }
-  }
-
-  // If the user code has no class definition, wrap it in a default Main class
-  if (!cleanCode.includes('class ') && !cleanCode.includes('interface ') && !cleanCode.includes('enum ')) {
-    cleanCode = `import java.util.*;\nimport java.io.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        ${cleanCode.split('\n').join('\n        ')}\n    }\n}`;
-    className = 'Main';
-  }
-
-  const sourceFile = path.join(workDir, `${className}.java`);
-  await fs.writeFile(sourceFile, cleanCode, 'utf-8');
-
-  return { sourceFile, className, cleanCode };
 }
 
 // TypeScript transpilation and preparation helper (Zero setup with esbuild)
@@ -565,42 +518,6 @@ app.post('/api/terminal/start', async (req, res) => {
       execCmd = path.join(workDir, 'program');
       execArgs = [];
 
-    } else if (language === 'java') {
-      const { className } = await prepareJavaCode(code, workDir);
-
-      const compileStart = Date.now();
-      const compileRes = await runProcess('javac', ['-encoding', 'UTF-8', `${className}.java`], workDir, '', 8000);
-      compilationTimeMs = Date.now() - compileStart;
-
-      if (compileRes.exitCode !== 0) {
-        const session: ActiveTerminalSession = {
-          sessionId,
-          language,
-          workDir,
-          startTime,
-          compilationTimeMs,
-          status: 'compile_error',
-          exitCode: compileRes.exitCode,
-          logs: [
-            { type: 'system', text: `Compiling ${className}.java with javac...\n`, timestamp: startTime },
-            { type: 'stderr', text: compileRes.stderr || 'Java compilation failed\n', timestamp: Date.now() },
-            { type: 'system', text: `\n[Java Compilation Failed with exit code ${compileRes.exitCode}]\n`, timestamp: Date.now() },
-          ],
-          clients: new Set(),
-        };
-        activeTerminalSessions.set(sessionId, session);
-        return res.json({
-          sessionId,
-          status: 'compile_error',
-          compilationTimeMs,
-          stderr: compileRes.stderr,
-          exitCode: compileRes.exitCode,
-        });
-      }
-
-      execCmd = 'java';
-      execArgs = ['-Xmx256m', '-cp', '.', className];
-
     } else if (language === 'python') {
       const sourceFile = path.join(workDir, 'main.py');
       await fs.writeFile(sourceFile, code, 'utf-8');
@@ -990,33 +907,6 @@ app.post('/api/execute', async (req, res) => {
       }
 
       const execRes = await runProcess(binFile, [], workDir, stdin, timeoutMs);
-      return res.json({
-        status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
-        stdout: execRes.stdout,
-        stderr: execRes.stderr,
-        exitCode: execRes.exitCode,
-        compilationTimeMs: compileRes.executionTimeMs,
-        executionTimeMs: execRes.executionTimeMs,
-        totalTimeMs: Date.now() - overallStartTime,
-      });
-
-    } else if (language === 'java') {
-      const { className } = await prepareJavaCode(code, workDir);
-
-      const compileRes = await runProcess('javac', ['-encoding', 'UTF-8', `${className}.java`], workDir, '', 7000);
-      if (compileRes.exitCode !== 0) {
-        return res.json({
-          status: 'compile_error',
-          stdout: '',
-          stderr: compileRes.stderr || 'Java compilation failed',
-          exitCode: compileRes.exitCode,
-          compilationTimeMs: compileRes.executionTimeMs,
-          executionTimeMs: 0,
-          totalTimeMs: Date.now() - overallStartTime,
-        });
-      }
-
-      const execRes = await runProcess('java', ['-Xmx256m', '-cp', '.', className], workDir, stdin, timeoutMs);
       return res.json({
         status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
         stdout: execRes.stdout,

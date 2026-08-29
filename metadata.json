@@ -1,6 +1,6 @@
 {
   "name": "Online Code IDE",
-  "description": "An online multi-language IDE supporting C, C++, Java, Python, JavaScript, TypeScript, SQL, and HTML/Web with real-time compilation and execution, interactive terminal, split-pane view, dark/bright themes, user manual, and instant PDF report export.",
+  "description": "An online multi-language IDE supporting C, C++, Python, JavaScript, TypeScript, SQL, and HTML/Web with real-time compilation and execution, interactive terminal, split-pane view, dark/bright themes, user manual, and instant PDF report export.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
