@@ -94,10 +94,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center: Language Selector Pills */}
-        <div className="flex items-center gap-1.5 max-w-full overflow-hidden">
+        <div className="flex items-center gap-1.5 flex-1 max-w-full justify-center sm:justify-start lg:justify-center overflow-hidden">
           <div
             id="language-selector"
-            className={`flex items-center p-0.5 sm:p-1 rounded-lg border overflow-x-auto no-scrollbar max-w-[280px] sm:max-w-[460px] md:max-w-[560px] lg:max-w-none ${
+            className={`flex items-center p-0.5 sm:p-1 rounded-lg border overflow-x-auto no-scrollbar gap-0.5 sm:gap-1 max-w-full ${
               isDark ? 'bg-[#0B0F19] border-[#2A3447]' : 'bg-slate-100 border-slate-200'
             }`}
           >

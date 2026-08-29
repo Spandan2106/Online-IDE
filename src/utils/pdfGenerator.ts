@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { SupportedLanguage, ExecutionResult, TerminalLogEntry } from '../types';
+import { LANGUAGE_CONFIGS } from '../data/templates';
 
 export interface PdfExportOptions {
   title?: string;
@@ -128,8 +129,9 @@ export function generateAndDownloadPdf(options: PdfExportOptions): string {
   doc.setTextColor(primaryTextColor[0], primaryTextColor[1], primaryTextColor[2]);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  const compName = language === 'c' ? 'GCC 12' : language === 'cpp' ? 'G++ 12' : language === 'java' ? 'Java 17 LTS' : 'Python 3.10';
-  doc.text(`${language.toUpperCase()} (${compName})`, margin + 4, currentY + 11);
+  const compConfig = LANGUAGE_CONFIGS[language];
+  const compName = compConfig ? compConfig.compiler : language.toUpperCase();
+  doc.text(`${(compConfig?.name || language).toUpperCase()} (${compName})`, margin + 4, currentY + 11);
 
   // Card 2: Status
   doc.roundedRect(margin + colWidth + 3, currentY, colWidth, metaHeight, 1.5, 1.5, 'FD');
@@ -239,7 +241,7 @@ export function generateAndDownloadPdf(options: PdfExportOptions): string {
 
     if (result.history && result.history.length > 0) {
       for (const log of result.history) {
-        const split = log.text.split('\n');
+        const split = (log.text || '').split('\n');
         for (let j = 0; j < split.length; j++) {
           const l = split[j];
           if (l || j < split.length - 1) {
@@ -254,12 +256,12 @@ export function generateAndDownloadPdf(options: PdfExportOptions): string {
       }
     } else {
       if (result.stdout) {
-        for (const l of result.stdout.split('\n')) {
+        for (const l of (result.stdout || '').split('\n')) {
           transcriptLines.push({ text: l, isInput: false, isError: false, isSystem: false });
         }
       }
       if (result.stderr) {
-        for (const l of result.stderr.split('\n')) {
+        for (const l of (result.stderr || '').split('\n')) {
           transcriptLines.push({ text: l, isInput: false, isError: true, isSystem: false });
         }
       }
@@ -322,7 +324,7 @@ export function generateAndDownloadPdf(options: PdfExportOptions): string {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(secondaryTextColor[0], secondaryTextColor[1], secondaryTextColor[2]);
-    doc.text('SyntaxHub Online IDE • C, C++, Java & Python Live Terminal', margin, pageHeight - 6);
+    doc.text('SyntaxHub Online IDE • Live Interactive Terminal & Multi-Language Compiler', margin, pageHeight - 6);
     doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 18, pageHeight - 6);
   }
 

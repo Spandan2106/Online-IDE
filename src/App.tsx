@@ -23,13 +23,19 @@ import { Code, Terminal, GripVertical, GripHorizontal, Play, Square } from 'luci
 
 export const App: React.FC = () => {
   // 1. Language & Code State
-  const [language, setLanguage] = useState<SupportedLanguage>('c');
-  const [codes, setCodes] = useState<Record<SupportedLanguage, string>>({
-    c: DEFAULT_TEMPLATES.c,
-    cpp: DEFAULT_TEMPLATES.cpp,
-    java: DEFAULT_TEMPLATES.java,
-    python: DEFAULT_TEMPLATES.python,
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    const saved = localStorage.getItem('ide_selected_language');
+    const validLanguages: SupportedLanguage[] = ['c', 'cpp', 'python', 'javascript', 'typescript', 'sql', 'html'];
+    return saved && validLanguages.includes(saved as SupportedLanguage) ? (saved as SupportedLanguage) : 'c';
   });
+  const [codes, setCodes] = useState<Record<SupportedLanguage, string>>(() => ({
+    ...DEFAULT_TEMPLATES,
+  }));
+
+  // Save selected language
+  useEffect(() => {
+    localStorage.setItem('ide_selected_language', language);
+  }, [language]);
 
   // 2. Interactive Terminal & Stream State
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -106,7 +112,7 @@ export const App: React.FC = () => {
   };
 
   const handleResetCode = () => {
-    setCodes((prev) => ({ ...prev, [language]: DEFAULT_TEMPLATES[language] }));
+    setCodes((prev) => ({ ...prev, [language]: DEFAULT_TEMPLATES[language] || '' }));
   };
 
   // Start Interactive Terminal Execution
@@ -132,7 +138,7 @@ export const App: React.FC = () => {
     setMobileActiveTab('terminal');
 
     try {
-      const currentCode = codes[language];
+      const currentCode = codes[language] ?? DEFAULT_TEMPLATES[language] ?? '';
       const startRes = await startTerminalSession(language, currentCode);
       setSessionId(startRes.sessionId);
 
@@ -343,7 +349,7 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [handleRunCode]);
 
-  const currentCode = codes[language];
+  const currentCode = codes[language] ?? DEFAULT_TEMPLATES[language] ?? '';
   const isDark = themeMode === 'dark';
 
   return (

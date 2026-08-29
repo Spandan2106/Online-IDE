@@ -13,8 +13,8 @@ export const USER_MANUAL_TOPICS: UserManualTopic[] = [
     bulletPoints: [
       'C: Use scanf("%s", name) or scanf("%d", &n) with fflush(stdout) on prompts.',
       'C++: Use std::cin >> var or std::getline(std::cin, str) with std::flush.',
-      'Java: Use java.util.Scanner scanner = new Scanner(System.in).',
       'Python: Use name = input("Enter name: ") or sys.stdin.readline().',
+      'JavaScript / TypeScript: Use readline or process.stdin with async input handling.',
       'Press Enter to submit input to the active program or use history with Up/Down arrows.',
     ],
     codeSample: {
@@ -72,16 +72,15 @@ int main() {
     title: '4. Compilers & Zero-Setup Runtimes',
     icon: 'Cpu',
     category: 'Compilers',
-    content: `SyntaxHub supports 8 core languages across native zero-setup runtimes and server-side compilers:`,
+    content: `SyntaxHub supports 7 core languages across native compilers and instant zero-setup runtimes:`,
     bulletPoints: [
+      'C (C17): Compiled directly with GCC 12 (-O2 -Wall -std=c17 -lm) with full standard library.',
+      'C++ (C++17): Compiled directly with G++ 12 (-O2 -Wall -std=c++17 -lm) with full STL container support.',
+      'Python (Python 3.10+): Executed with unbuffered real-time interactive I/O.',
       '⚡ JavaScript (ES2022+): Executes natively with Node.js v22 (zero setup required).',
       '⚡ TypeScript (TS 5.x): Instant transpilation via high-speed esbuild runtime (zero setup required).',
       '⚡ SQL (SQLite Relational DB): In-memory relational database engine with formatted ASCII tables (zero setup required).',
       '⚡ HTML / CSS / Web: Playground runtime with DOM parsing and embedded script execution (zero setup required).',
-      'Python (Python 3.10+): Executed with unbuffered real-time interactive I/O.',
-      'Java (Java 17 LTS): Compiled with javac and executed on OpenJDK 17 with dynamic class detection.',
-      'C (C17): Compiled with GCC 12 (-O2 -Wall -std=c17 -lm) with full standard library.',
-      'C++ (C++17): Compiled with G++ 12 (-O2 -Wall -std=c++17 -lm) with full STL container support.',
     ],
   },
   {

@@ -80,7 +80,8 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
     }
   };
 
-  const lineCount = code.split('\n').length;
+  const safeCode = code || '';
+  const lineCount = safeCode.split('\n').length;
   const statusLabel =
     result.status === 'success'
       ? 'Success'

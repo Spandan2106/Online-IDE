@@ -1,12 +1,11 @@
 export type SupportedLanguage =
-  | 'javascript'
-  | 'typescript'
-  | 'python'
-  | 'html'
-  | 'sql'
   | 'c'
   | 'cpp'
-  | 'java';
+  | 'python'
+  | 'javascript'
+  | 'typescript'
+  | 'sql'
+  | 'html';
 
 export interface LanguageConfig {
   id: SupportedLanguage;

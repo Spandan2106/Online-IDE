@@ -54,9 +54,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [searchMatches, setSearchMatches] = useState<number[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
-  const config = LANGUAGE_CONFIGS[language];
+  const safeCode = code || '';
+  const config = LANGUAGE_CONFIGS[language] || LANGUAGE_CONFIGS.javascript;
   const templates = TEMPLATES_BY_LANGUAGE[language] || [];
-  const lines = code.split('\n');
+  const lines = safeCode.split('\n');
 
   // Handle scroll syncing between line numbers and textarea
   const handleScroll = () => {
@@ -69,7 +70,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const handleCursorMove = () => {
     if (!textareaRef.current) return;
     const pos = textareaRef.current.selectionStart;
-    const textBefore = code.substring(0, pos);
+    const textBefore = safeCode.substring(0, pos);
     const lineArr = textBefore.split('\n');
     setCursorPos({
       line: lineArr.length,
@@ -142,7 +143,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     // 3. Auto-indentation upon pressing Enter
     if (e.key === 'Enter') {
-      const before = code.substring(0, start);
+      const before = safeCode.substring(0, start);
       const lastLine = before.split('\n').pop() || '';
       const match = lastLine.match(/^(\s+)/);
       const currentIndent = match ? match[1] : '';
@@ -151,7 +152,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       if (currentIndent || extraIndent) {
         e.preventDefault();
         const totalIndent = currentIndent + extraIndent;
-        const newCode = code.substring(0, start) + '\n' + totalIndent + code.substring(end);
+        const newCode = safeCode.substring(0, start) + '\n' + totalIndent + safeCode.substring(end);
         onChangeCode(newCode);
         setTimeout(() => {
           textarea.selectionStart = textarea.selectionEnd = start + 1 + totalIndent.length;
@@ -202,7 +203,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Format code (basic beautification)
   const handleFormatCode = () => {
-    const rawLines = code.split('\n');
+    const rawLines = safeCode.split('\n');
     let indentLevel = 0;
     const formatted = rawLines.map((line) => {
       const trimmed = line.trim();
@@ -237,7 +238,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     const matches: number[] = [];
     let pos = 0;
-    const lowerCode = code.toLowerCase();
+    const lowerCode = safeCode.toLowerCase();
     const lowerQuery = searchQuery.toLowerCase();
 
     while (pos < lowerCode.length) {
@@ -249,7 +250,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     setSearchMatches(matches);
     setCurrentMatchIndex(0);
-  }, [searchQuery, code]);
+  }, [searchQuery, safeCode]);
 
   const handleNextMatch = () => {
     if (searchMatches.length === 0) return;
@@ -466,7 +467,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             title="Upload code file"
           >
             <Upload className="w-3.5 h-3.5" />
-            <input type="file" accept=".c,.cpp,.java,.py,.txt,.h,.hpp" onChange={handleUploadFile} className="hidden" />
+            <input type="file" accept=".c,.cpp,.py,.js,.ts,.sql,.html,.css,.txt,.h,.hpp" onChange={handleUploadFile} className="hidden" />
           </label>
         </div>
       </div>

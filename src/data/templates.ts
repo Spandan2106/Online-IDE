@@ -1,6 +1,48 @@
 import { SupportedLanguage, CodeTemplate, LanguageConfig } from '../types';
 
 export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
+  c: {
+    id: 'c',
+    name: 'C',
+    extension: '.c',
+    defaultFilename: 'main.c',
+    compiler: 'GCC 12 (C17 standard)',
+    version: 'C17',
+    iconName: 'Code2',
+    syntaxColor: '#00599C',
+    accentColor: 'from-blue-600 to-indigo-600',
+    description: 'High-performance, procedural systems programming language with GCC 12.',
+    isZeroSetup: false,
+    category: 'compiled',
+  },
+  cpp: {
+    id: 'cpp',
+    name: 'C++',
+    extension: '.cpp',
+    defaultFilename: 'main.cpp',
+    compiler: 'G++ 12 (C++17 standard)',
+    version: 'C++17',
+    iconName: 'Cpu',
+    syntaxColor: '#004482',
+    accentColor: 'from-sky-500 to-blue-700',
+    description: 'Powerful object-oriented and generic systems programming language with G++ 12.',
+    isZeroSetup: false,
+    category: 'compiled',
+  },
+  python: {
+    id: 'python',
+    name: 'Python',
+    extension: '.py',
+    defaultFilename: 'main.py',
+    compiler: 'Python 3',
+    version: 'Python 3.10+',
+    iconName: 'FileCode2',
+    syntaxColor: '#3776AB',
+    accentColor: 'from-emerald-500 to-teal-700',
+    description: 'High-level, expressive, dynamically-typed multi-paradigm language.',
+    isZeroSetup: true,
+    category: 'native',
+  },
   javascript: {
     id: 'javascript',
     name: 'JavaScript',
@@ -26,20 +68,6 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
     syntaxColor: '#3178C6',
     accentColor: 'from-blue-500 to-sky-600',
     description: 'Type-safe JavaScript superset with instant compilation and zero setup.',
-    isZeroSetup: true,
-    category: 'native',
-  },
-  python: {
-    id: 'python',
-    name: 'Python',
-    extension: '.py',
-    defaultFilename: 'main.py',
-    compiler: 'Python 3',
-    version: 'Python 3.10+',
-    iconName: 'FileCode2',
-    syntaxColor: '#3776AB',
-    accentColor: 'from-emerald-500 to-teal-700',
-    description: 'High-level, expressive, dynamically-typed multi-paradigm language.',
     isZeroSetup: true,
     category: 'native',
   },
@@ -70,48 +98,6 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
     description: 'Full-stack client web playground with live DOM and script evaluation.',
     isZeroSetup: true,
     category: 'native',
-  },
-  c: {
-    id: 'c',
-    name: 'C',
-    extension: '.c',
-    defaultFilename: 'main.c',
-    compiler: 'GCC 12 (C17 standard)',
-    version: 'C17',
-    iconName: 'Code2',
-    syntaxColor: '#00599C',
-    accentColor: 'from-blue-600 to-indigo-600',
-    description: 'High-performance, procedural systems programming language.',
-    isZeroSetup: false,
-    category: 'compiled',
-  },
-  cpp: {
-    id: 'cpp',
-    name: 'C++',
-    extension: '.cpp',
-    defaultFilename: 'main.cpp',
-    compiler: 'G++ 12 (C++17 standard)',
-    version: 'C++17',
-    iconName: 'Cpu',
-    syntaxColor: '#004482',
-    accentColor: 'from-sky-500 to-blue-700',
-    description: 'Powerful object-oriented and generic systems programming language.',
-    isZeroSetup: false,
-    category: 'compiled',
-  },
-  java: {
-    id: 'java',
-    name: 'Java',
-    extension: '.java',
-    defaultFilename: 'Main.java',
-    compiler: 'OpenJDK 17',
-    version: 'Java 17 LTS',
-    iconName: 'Coffee',
-    syntaxColor: '#EA2D2E',
-    accentColor: 'from-amber-600 to-red-600',
-    description: 'Robust, platform-independent, object-oriented enterprise language.',
-    isZeroSetup: false,
-    category: 'compiled',
   },
 };
 
@@ -650,62 +636,6 @@ int main() {
     },
   ],
 
-  java: [
-    {
-      id: 'java-interactive',
-      title: 'Interactive Scanner Input',
-      category: 'Interactive I/O',
-      description: 'Java 17 live user input using java.util.Scanner',
-      code: `import java.util.Scanner;
-
-public class Main {
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        
-        System.out.println("=========================================");
-        System.out.println(" Welcome to the Live Java Terminal!");
-        System.out.println("=========================================");
-        
-        System.out.print("Enter your name: ");
-        if (scanner.hasNext()) {
-            String name = scanner.next();
-            System.out.println("Hello, " + name + "! Welcome to Java 17 LTS.\\n");
-        }
-        
-        System.out.print("Enter a number to check if it is Prime: ");
-        if (scanner.hasNextInt()) {
-            int num = scanner.nextInt();
-            boolean isPrime = num > 1;
-            for (int i = 2; i * i <= num; i++) {
-                if (num % i == 0) {
-                    isPrime = false;
-                    break;
-                }
-            }
-            System.out.println(">> " + num + (isPrime ? " is a PRIME number!" : " is NOT a prime number."));
-        }
-        
-        scanner.close();
-    }
-}
-`,
-    },
-    {
-      id: 'java-hello',
-      title: 'Hello World',
-      category: 'Basics',
-      description: 'Standard Java 17 class and main entry point',
-      code: `public class Main {
-    public static void main(String[] args) {
-        System.out.println("=========================================");
-        System.out.println(" Hello, World from Java 17 LTS!");
-        System.out.println("=========================================");
-    }
-}
-`,
-    },
-  ],
-
   python: [
     {
       id: 'python-interactive',
@@ -742,12 +672,11 @@ print("SyntaxHub IDE is fast, flexible, and interactive.")
 };
 
 export const DEFAULT_TEMPLATES: Record<SupportedLanguage, string> = {
-  javascript: TEMPLATES_BY_LANGUAGE.javascript[0].code,
-  typescript: TEMPLATES_BY_LANGUAGE.typescript[0].code,
-  python: TEMPLATES_BY_LANGUAGE.python[0].code,
-  sql: TEMPLATES_BY_LANGUAGE.sql[0].code,
-  html: TEMPLATES_BY_LANGUAGE.html[0].code,
   c: TEMPLATES_BY_LANGUAGE.c[0].code,
   cpp: TEMPLATES_BY_LANGUAGE.cpp[0].code,
-  java: TEMPLATES_BY_LANGUAGE.java[0].code,
+  python: TEMPLATES_BY_LANGUAGE.python[0].code,
+  javascript: TEMPLATES_BY_LANGUAGE.javascript[0].code,
+  typescript: TEMPLATES_BY_LANGUAGE.typescript[0].code,
+  sql: TEMPLATES_BY_LANGUAGE.sql[0].code,
+  html: TEMPLATES_BY_LANGUAGE.html[0].code,
 };
