@@ -467,7 +467,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             title="Upload code file"
           >
             <Upload className="w-3.5 h-3.5" />
-            <input type="file" accept=".c,.cpp,.py,.js,.ts,.sql,.html,.css,.txt,.h,.hpp" onChange={handleUploadFile} className="hidden" />
+            <input type="file" accept=".c,.cpp,.java,.py,.js,.ts,.sql,.html,.css,.txt,.h,.hpp" onChange={handleUploadFile} className="hidden" />
           </label>
         </div>
       </div>

@@ -25,7 +25,7 @@ export const App: React.FC = () => {
   // 1. Language & Code State
   const [language, setLanguage] = useState<SupportedLanguage>(() => {
     const saved = localStorage.getItem('ide_selected_language');
-    const validLanguages: SupportedLanguage[] = ['c', 'cpp', 'python', 'javascript', 'typescript', 'sql', 'html'];
+    const validLanguages: SupportedLanguage[] = ['c', 'cpp', 'java', 'python', 'javascript', 'typescript', 'sql', 'html'];
     return saved && validLanguages.includes(saved as SupportedLanguage) ? (saved as SupportedLanguage) : 'c';
   });
   const [codes, setCodes] = useState<Record<SupportedLanguage, string>>(() => ({
