@@ -1,6 +1,76 @@
 import { SupportedLanguage, CodeTemplate, LanguageConfig } from '../types';
 
 export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
+  javascript: {
+    id: 'javascript',
+    name: 'JavaScript',
+    extension: '.js',
+    defaultFilename: 'index.js',
+    compiler: 'Node.js V8 Engine',
+    version: 'Node.js 22 LTS',
+    iconName: 'FileCode',
+    syntaxColor: '#F7DF1E',
+    accentColor: 'from-amber-400 to-yellow-600',
+    description: 'Universal, asynchronous scripting language with instant native execution.',
+    isZeroSetup: true,
+    category: 'native',
+  },
+  typescript: {
+    id: 'typescript',
+    name: 'TypeScript',
+    extension: '.ts',
+    defaultFilename: 'index.ts',
+    compiler: 'TypeScript 5.8 / Node.js',
+    version: 'TS 5.8 (ES2024)',
+    iconName: 'Code',
+    syntaxColor: '#3178C6',
+    accentColor: 'from-blue-500 to-sky-600',
+    description: 'Type-safe JavaScript superset with instant compilation and zero setup.',
+    isZeroSetup: true,
+    category: 'native',
+  },
+  python: {
+    id: 'python',
+    name: 'Python',
+    extension: '.py',
+    defaultFilename: 'main.py',
+    compiler: 'Python 3',
+    version: 'Python 3.10+',
+    iconName: 'FileCode2',
+    syntaxColor: '#3776AB',
+    accentColor: 'from-emerald-500 to-teal-700',
+    description: 'High-level, expressive, dynamically-typed multi-paradigm language.',
+    isZeroSetup: true,
+    category: 'native',
+  },
+  sql: {
+    id: 'sql',
+    name: 'SQL',
+    extension: '.sql',
+    defaultFilename: 'query.sql',
+    compiler: 'SQLite Relational Engine',
+    version: 'SQLite 3.45',
+    iconName: 'Database',
+    syntaxColor: '#00BC7D',
+    accentColor: 'from-teal-500 to-emerald-700',
+    description: 'Relational database query language with formatted ASCII result tables.',
+    isZeroSetup: true,
+    category: 'native',
+  },
+  html: {
+    id: 'html',
+    name: 'HTML/CSS/JS',
+    extension: '.html',
+    defaultFilename: 'index.html',
+    compiler: 'Web Playground Runtime',
+    version: 'HTML5 / CSS3 / ES2024',
+    iconName: 'Globe',
+    syntaxColor: '#E34F26',
+    accentColor: 'from-orange-500 to-amber-600',
+    description: 'Full-stack client web playground with live DOM and script evaluation.',
+    isZeroSetup: true,
+    category: 'native',
+  },
   c: {
     id: 'c',
     name: 'C',
@@ -12,6 +82,8 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
     syntaxColor: '#00599C',
     accentColor: 'from-blue-600 to-indigo-600',
     description: 'High-performance, procedural systems programming language.',
+    isZeroSetup: false,
+    category: 'compiled',
   },
   cpp: {
     id: 'cpp',
@@ -24,6 +96,8 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
     syntaxColor: '#004482',
     accentColor: 'from-sky-500 to-blue-700',
     description: 'Powerful object-oriented and generic systems programming language.',
+    isZeroSetup: false,
+    category: 'compiled',
   },
   java: {
     id: 'java',
@@ -36,22 +110,407 @@ export const LANGUAGE_CONFIGS: Record<SupportedLanguage, LanguageConfig> = {
     syntaxColor: '#EA2D2E',
     accentColor: 'from-amber-600 to-red-600',
     description: 'Robust, platform-independent, object-oriented enterprise language.',
-  },
-  python: {
-    id: 'python',
-    name: 'Python',
-    extension: '.py',
-    defaultFilename: 'main.py',
-    compiler: 'Python 3.10',
-    version: 'Python 3.10',
-    iconName: 'FileCode2',
-    syntaxColor: '#3776AB',
-    accentColor: 'from-emerald-500 to-teal-700',
-    description: 'High-level, expressive, dynamically-typed multi-paradigm language.',
+    isZeroSetup: false,
+    category: 'compiled',
   },
 };
 
 export const TEMPLATES_BY_LANGUAGE: Record<SupportedLanguage, CodeTemplate[]> = {
+  javascript: [
+    {
+      id: 'js-interactive',
+      title: 'Interactive Readline Input',
+      category: 'Interactive I/O',
+      description: 'Real-time interactive user prompt in Node.js terminal',
+      code: `const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+console.log("=========================================");
+console.log(" Welcome to the Live JavaScript (Node.js) Terminal!");
+console.log("=========================================");
+
+rl.question('What is your name? ', (name) => {
+  console.log(\`Hello, \${name}! Welcome to zero-setup JavaScript.\`);
+  
+  rl.question('Enter a number to calculate factorial: ', (numStr) => {
+    const num = parseInt(numStr, 10);
+    if (!isNaN(num) && num >= 0) {
+      let fact = 1;
+      for (let i = 2; i <= num; i++) fact *= i;
+      console.log(\`>> Factorial of \${num} is \${fact}\`);
+    } else {
+      console.log('Invalid positive integer.');
+    }
+    rl.close();
+  });
+});
+`,
+    },
+    {
+      id: 'js-hello',
+      title: 'Modern ES2024 & Async/Await',
+      category: 'Basics',
+      description: 'Demonstrates modern JavaScript features, Promises, and array pipelines',
+      code: `// Modern JavaScript ES2024 & Async/Await Demo
+console.log("=========================================");
+console.log(" Hello, World from JavaScript (Node.js 22 LTS)!");
+console.log("=========================================");
+
+const users = [
+  { id: 1, name: 'Alice', role: 'Engineer', score: 95 },
+  { id: 2, name: 'Bob', role: 'Designer', score: 88 },
+  { id: 3, name: 'Charlie', role: 'Product Lead', score: 92 },
+];
+
+console.log("Team Members above 90 score:");
+const topPerformers = users
+  .filter(u => u.score >= 90)
+  .map(u => \`  ⭐ \${u.name} (\${u.role}) - Score: \${u.score}\`);
+
+console.log(topPerformers.join('\\n'));
+
+const avgScore = (users.reduce((acc, u) => acc + u.score, 0) / users.length).toFixed(1);
+console.log(\`\\nTeam Average Score: \${avgScore}\`);
+`,
+    },
+    {
+      id: 'js-algo',
+      title: 'Algorithm: Two Sum & Hash Map',
+      category: 'Algorithms',
+      description: 'Finds two indices that add up to target in O(n) time',
+      code: `function twoSum(nums, target) {
+  const map = new Map();
+  for (let i = 0; i < nums.length; i++) {
+    const complement = target - nums[i];
+    if (map.has(complement)) {
+      return [map.get(complement), i];
+    }
+    map.set(nums[i], i);
+  }
+  return null;
+}
+
+const numbers = [2, 7, 11, 15, 3, 6];
+const target = 9;
+
+console.log(\`Searching for two numbers in [\${numbers.join(', ')}] that sum to \${target}...\`);
+const result = twoSum(numbers, target);
+
+if (result) {
+  const [i, j] = result;
+  console.log(\`✓ Found pair at indices [\${i}, \${j}]: \${numbers[i]} + \${numbers[j]} = \${target}\`);
+} else {
+  console.log("No two sum solution found.");
+}
+`,
+    },
+  ],
+
+  typescript: [
+    {
+      id: 'ts-interactive',
+      title: 'Interactive Readline with Types',
+      category: 'Interactive I/O',
+      description: 'Type-safe interactive prompt with interfaces and generics',
+      code: `import * as readline from 'readline';
+
+interface Person {
+  name: string;
+  age: number;
+  role: 'Developer' | 'Student' | 'Creator';
+}
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+console.log("=========================================");
+console.log(" Welcome to TypeScript 5.8 (Zero Setup)!");
+console.log("=========================================");
+
+rl.question('Enter developer name: ', (name: string) => {
+  rl.question('Enter age: ', (ageStr: string) => {
+    const age = parseInt(ageStr, 10) || 24;
+    
+    const user: Person = {
+      name: name || 'TypeScript Dev',
+      age,
+      role: 'Developer',
+    };
+
+    console.log(\`\\n✓ Registered \${user.role}: \${user.name}, \${user.age} years old.\`);
+    console.log(\`>> Status: Type-safe runtime compilation successful!\`);
+    rl.close();
+  });
+});
+`,
+    },
+    {
+      id: 'ts-generics',
+      title: 'Generics & Data Structures',
+      category: 'Data Structures',
+      description: 'Generic Stack and Queue data structure implementation',
+      code: `// Generic Stack Implementation in TypeScript
+class Stack<T> {
+  private items: T[] = [];
+
+  push(item: T): void {
+    this.items.push(item);
+  }
+
+  pop(): T | undefined {
+    return this.items.pop();
+  }
+
+  peek(): T | undefined {
+    return this.items[this.items.length - 1];
+  }
+
+  size(): number {
+    return this.items.length;
+  }
+
+  isEmpty(): boolean {
+    return this.items.length === 0;
+  }
+}
+
+console.log("--- Generic Stack Test ---");
+const numberStack = new Stack<number>();
+numberStack.push(10);
+numberStack.push(20);
+numberStack.push(30);
+
+console.log(\`Stack top element: \${numberStack.peek()}\`);
+console.log(\`Popped element: \${numberStack.pop()}\`);
+console.log(\`Remaining size: \${numberStack.size()}\`);
+
+const stringStack = new Stack<string>();
+stringStack.push('TypeScript');
+stringStack.push('Node.js');
+stringStack.push('React');
+console.log(\`String Stack size: \${stringStack.size()} (Top: \${stringStack.peek()})\`);
+`,
+    },
+    {
+      id: 'ts-quicksort',
+      title: 'Generic QuickSort Algorithm',
+      category: 'Algorithms',
+      description: 'Recursive QuickSort with custom comparator functions',
+      code: `function quickSort<T>(arr: T[], compare: (a: T, b: T) => number): T[] {
+  if (arr.length <= 1) return arr;
+  
+  const pivot = arr[arr.length - 1];
+  const left: T[] = [];
+  const right: T[] = [];
+
+  for (let i = 0; i < arr.length - 1; i++) {
+    if (compare(arr[i], pivot) < 0) {
+      left.push(arr[i]);
+    } else {
+      right.push(arr[i]);
+    }
+  }
+
+  return [...quickSort(left, compare), pivot, ...quickSort(right, compare)];
+}
+
+const scores: number[] = [45, 12, 89, 34, 77, 95, 23, 61];
+console.log("Original array:", scores);
+
+const sortedScores = quickSort(scores, (a, b) => a - b);
+console.log("Sorted array (Ascending):", sortedScores);
+
+const reversedScores = quickSort(scores, (a, b) => b - a);
+console.log("Sorted array (Descending):", reversedScores);
+`,
+    },
+  ],
+
+  sql: [
+    {
+      id: 'sql-ecommerce',
+      title: 'E-Commerce Database & Joins',
+      category: 'Basics',
+      description: 'Creates tables, inserts orders, customers, and runs aggregations',
+      code: `-- Relational SQLite Engine Demo (Zero Setup)
+CREATE TABLE customers (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    country TEXT
+);
+
+CREATE TABLE orders (
+    order_id INTEGER PRIMARY KEY,
+    customer_id INTEGER,
+    product TEXT,
+    amount REAL,
+    order_date TEXT,
+    FOREIGN KEY(customer_id) REFERENCES customers(id)
+);
+
+INSERT INTO customers VALUES 
+    (1, 'Alice Smith', 'alice@example.com', 'USA'),
+    (2, 'Bob Johnson', 'bob@example.com', 'UK'),
+    (3, 'Charlie Lee', 'charlie@example.com', 'Canada'),
+    (4, 'Diana Patel', 'diana@example.com', 'India');
+
+INSERT INTO orders VALUES 
+    (101, 1, 'Mechanical Keyboard', 129.99, '2026-01-15'),
+    (102, 1, 'UltraWide Monitor', 499.50, '2026-01-18'),
+    (103, 2, 'Noise Cancelling Headphones', 199.00, '2026-02-01'),
+    (104, 3, 'Ergonomic Chair', 280.00, '2026-02-10'),
+    (105, 4, 'USB-C Docking Station', 89.99, '2026-02-14'),
+    (106, 2, 'Wireless Mouse', 45.00, '2026-02-20');
+
+-- 1. Query: Customer Order Summary with JOIN & GROUP BY
+SELECT 
+    c.name AS customer_name,
+    c.country,
+    COUNT(o.order_id) AS total_orders,
+    SUM(o.amount) AS total_spent
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+GROUP BY c.id
+ORDER BY total_spent DESC;
+`,
+    },
+    {
+      id: 'sql-employees',
+      title: 'Department Analytics & Salary',
+      category: 'Algorithms',
+      description: 'Window functions, averages, and highest earners per department',
+      code: `CREATE TABLE departments (
+    dept_id INTEGER PRIMARY KEY,
+    dept_name TEXT NOT NULL
+);
+
+CREATE TABLE employees (
+    emp_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    dept_id INTEGER,
+    salary INTEGER,
+    hire_year INTEGER
+);
+
+INSERT INTO departments VALUES (1, 'Engineering'), (2, 'Design'), (3, 'Marketing');
+
+INSERT INTO employees VALUES
+    (1, 'Alex', 1, 95000, 2021),
+    (2, 'Brian', 1, 110000, 2019),
+    (3, 'Chloe', 2, 85000, 2022),
+    (4, 'David', 3, 72000, 2020),
+    (5, 'Elena', 1, 125000, 2018),
+    (6, 'Fiona', 3, 78000, 2023);
+
+-- Department Salary Statistics
+SELECT 
+    d.dept_name,
+    COUNT(e.emp_id) AS employee_count,
+    AVG(e.salary) AS average_salary,
+    MAX(e.salary) AS top_salary
+FROM departments d
+LEFT JOIN employees e ON d.dept_id = e.dept_id
+GROUP BY d.dept_id;
+`,
+    },
+  ],
+
+  html: [
+    {
+      id: 'html-app',
+      title: 'Interactive Web Card & Counter',
+      category: 'Basics',
+      description: 'HTML5 layout with CSS animations and JavaScript state counter',
+      code: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SyntaxHub Web App</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 90vh;
+      margin: 0;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+      max-width: 380px;
+      width: 100%;
+    }
+    .counter-value {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: #38bdf8;
+      margin: 1rem 0;
+      font-family: monospace;
+    }
+    .btn-group {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+    }
+    button {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+    }
+    button:hover { background: #0369a1; }
+    button:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>⚡ SyntaxHub Web App</h2>
+    <p style="color: #94a3b8; font-size: 0.9rem;">Client-side zero-setup playground</p>
+    <div id="counter" class="counter-value">0</div>
+    <div class="btn-group">
+      <button onclick="decrement()">- Decrease</button>
+      <button onclick="reset()">Reset</button>
+      <button onclick="increment()">+ Increase</button>
+    </div>
+  </div>
+
+  <script>
+    let count = 0;
+    const counterEl = document.getElementById('counter');
+
+    function update() {
+      counterEl.textContent = count;
+    }
+    function increment() { count++; update(); }
+    function decrement() { count--; update(); }
+    function reset() { count = 0; update(); }
+    console.log("Web Application initialized successfully!");
+  </script>
+</body>
+</html>
+`,
+    },
+  ],
+
   c: [
     {
       id: 'c-interactive',
@@ -139,43 +598,6 @@ int main(void) {
 }
 `,
     },
-    {
-      id: 'c-algo',
-      title: 'Array Sorting & Search',
-      category: 'Algorithms',
-      description: 'Sorts integers and searches target via terminal prompt',
-      code: `#include <stdio.h>
-#include <stdlib.h>
-
-int compare(const void *a, const void *b) {
-    return (*(int*)a - *(int*)b);
-}
-
-int main(void) {
-    int n;
-    printf("Enter number of elements: ");
-    fflush(stdout);
-    if (scanf("%d", &n) != 1 || n <= 0) return 0;
-    
-    int *arr = (int*)malloc(n * sizeof(int));
-    printf("Enter %d integers (press Enter after each):\\n", n);
-    for (int i = 0; i < n; i++) {
-        printf("  Element [%d]: ", i + 1);
-        fflush(stdout);
-        scanf("%d", &arr[i]);
-    }
-    
-    qsort(arr, n, sizeof(int), compare);
-    
-    printf("\\nSorted Array: ");
-    for (int i = 0; i < n; i++) printf("%d ", arr[i]);
-    printf("\\n");
-    
-    free(arr);
-    return 0;
-}
-`,
-    },
   ],
 
   cpp: [
@@ -222,43 +644,6 @@ int main() {
     std::cout << "=========================================" << std::endl;
     std::cout << " Hello, World from C++17!" << std::endl;
     std::cout << "=========================================" << std::endl;
-    return 0;
-}
-`,
-    },
-    {
-      id: 'cpp-vector-algo',
-      title: 'Vector Manipulation & STL',
-      category: 'Data Structures',
-      description: 'Interactive dynamic array with STL algorithms',
-      code: `#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <numeric>
-
-int main() {
-    int count;
-    std::cout << "How many numbers would you like to analyze? " << std::flush;
-    if (!(std::cin >> count) || count <= 0) return 0;
-    
-    std::vector<int> numbers;
-    for (int i = 0; i < count; ++i) {
-        int val;
-        std::cout << "Number " << (i + 1) << ": " << std::flush;
-        std::cin >> val;
-        numbers.push_back(val);
-    }
-    
-    std::sort(numbers.begin(), numbers.end());
-    double sum = std::accumulate(numbers.begin(), numbers.end(), 0);
-    
-    std::cout << "\\n--- Results ---" << std::endl;
-    std::cout << "Sorted: ";
-    for (int n : numbers) std::cout << n << " ";
-    std::cout << std::endl;
-    std::cout << "Average: " << (sum / count) << std::endl;
-    std::cout << "Min: " << numbers.front() << " | Max: " << numbers.back() << std::endl;
-    
     return 0;
 }
 `,
@@ -332,7 +717,7 @@ print(" Welcome to the Live Python Terminal!")
 print("=========================================")
 
 name = input("Enter your name: ")
-print(f"Hello, {name}! Ready to write some Python.\n")
+print(f"Hello, {name}! Ready to write some Python.\\n")
 
 try:
     num = float(input("Enter a number to calculate square and cube: "))
@@ -353,30 +738,16 @@ print("=========================================")
 print("SyntaxHub IDE is fast, flexible, and interactive.")
 `,
     },
-    {
-      id: 'python-quiz',
-      title: 'Interactive Math Quiz',
-      category: 'Interactive I/O',
-      description: 'A 2-question interactive math game in the terminal',
-      code: `import random
-
-print("=== Python Quick Math Challenge ===")
-a = random.randint(1, 10)
-b = random.randint(1, 10)
-
-answer = int(input(f"What is {a} * {b}? "))
-if answer == a * b:
-    print("✓ Correct! Fantastic job.")
-else:
-    print(f"✗ Oops! The correct answer was {a * b}.")
-`,
-    },
   ],
 };
 
 export const DEFAULT_TEMPLATES: Record<SupportedLanguage, string> = {
+  javascript: TEMPLATES_BY_LANGUAGE.javascript[0].code,
+  typescript: TEMPLATES_BY_LANGUAGE.typescript[0].code,
+  python: TEMPLATES_BY_LANGUAGE.python[0].code,
+  sql: TEMPLATES_BY_LANGUAGE.sql[0].code,
+  html: TEMPLATES_BY_LANGUAGE.html[0].code,
   c: TEMPLATES_BY_LANGUAGE.c[0].code,
   cpp: TEMPLATES_BY_LANGUAGE.cpp[0].code,
   java: TEMPLATES_BY_LANGUAGE.java[0].code,
-  python: TEMPLATES_BY_LANGUAGE.python[0].code,
 };

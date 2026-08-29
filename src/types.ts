@@ -1,4 +1,12 @@
-export type SupportedLanguage = 'c' | 'cpp' | 'java' | 'python';
+export type SupportedLanguage =
+  | 'javascript'
+  | 'typescript'
+  | 'python'
+  | 'html'
+  | 'sql'
+  | 'c'
+  | 'cpp'
+  | 'java';
 
 export interface LanguageConfig {
   id: SupportedLanguage;
@@ -11,6 +19,8 @@ export interface LanguageConfig {
   syntaxColor: string;
   accentColor: string;
   description: string;
+  isZeroSetup?: boolean;
+  category?: 'native' | 'compiled';
 }
 
 export type ThemeMode = 'dark' | 'bright';

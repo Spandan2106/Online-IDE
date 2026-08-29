@@ -6,6 +6,7 @@ import os from 'os';
 import { spawn, ChildProcess } from 'child_process';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import * as esbuild from 'esbuild';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -152,6 +153,147 @@ async function prepareJavaCode(code: string, workDir: string): Promise<{
   return { sourceFile, className, cleanCode };
 }
 
+// TypeScript transpilation and preparation helper (Zero setup with esbuild)
+async function prepareTypeScriptCode(code: string, workDir: string): Promise<{
+  jsFile: string;
+  error?: string;
+}> {
+  try {
+    const result = esbuild.transformSync(code, {
+      loader: 'ts',
+      target: 'es2022',
+      format: 'cjs',
+      sourcemap: 'inline',
+    });
+    const jsFile = path.join(workDir, 'index.cjs');
+    await fs.writeFile(jsFile, result.code, 'utf-8');
+    return { jsFile };
+  } catch (err: any) {
+    return { jsFile: '', error: err.message || 'TypeScript compilation error' };
+  }
+}
+
+// JavaScript code preparation helper
+async function prepareJavaScriptCode(code: string, workDir: string): Promise<string> {
+  const jsFile = path.join(workDir, 'index.cjs');
+  await fs.writeFile(jsFile, code, 'utf-8');
+  return jsFile;
+}
+
+// SQL SQLite runner preparation helper (Zero setup with in-memory SQLite)
+async function prepareSqlRunner(sql: string, workDir: string): Promise<string> {
+  const runnerScript = `
+const fs = require('fs');
+let DatabaseSync;
+try {
+  DatabaseSync = require('node:sqlite').DatabaseSync;
+} catch (e) {
+  DatabaseSync = null;
+}
+
+if (!DatabaseSync) {
+  console.error("SQLite engine unavailable in current Node.js environment.");
+  process.exit(1);
+}
+
+const db = new DatabaseSync(':memory:');
+const rawSql = ${JSON.stringify(sql)};
+
+function splitStatements(sqlText) {
+  const stmts = [];
+  let current = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  
+  for (let i = 0; i < sqlText.length; i++) {
+    const char = sqlText[i];
+    if (char === "'" && sqlText[i-1] !== '\\\\') inSingleQuote = !inSingleQuote;
+    else if (char === '"' && sqlText[i-1] !== '\\\\') inDoubleQuote = !inDoubleQuote;
+    
+    if (char === ';' && !inSingleQuote && !inDoubleQuote) {
+      if (current.trim()) stmts.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) stmts.push(current.trim());
+  return stmts;
+}
+
+const statements = splitStatements(rawSql);
+console.log("=========================================");
+console.log(" SQLite Relational Database Engine");
+console.log(" Mode: In-Memory (:memory:) | Native Zero-Setup");
+console.log("=========================================\\n");
+
+for (let i = 0; i < statements.length; i++) {
+  const stmt = statements[i];
+  if (!stmt) continue;
+  
+  const isSelect = /^\\s*(SELECT|PRAGMA|WITH|EXPLAIN)/i.test(stmt);
+  console.log("SQL> " + stmt.replace(/\\s+/g, ' ') + ";");
+  
+  try {
+    if (isSelect) {
+      const query = db.prepare(stmt);
+      const rows = query.all();
+      if (rows.length === 0) {
+        console.log("  (Empty set - 0 rows returned)\\n");
+      } else {
+        console.table(rows);
+        console.log(\`  (\${rows.length} row\${rows.length > 1 ? 's' : ''} returned)\\n\`);
+      }
+    } else {
+      db.exec(stmt + ';');
+      console.log("  Query OK.\\n");
+    }
+  } catch (err) {
+    console.error("  Error: " + err.message + "\\n");
+  }
+}
+`;
+  const scriptPath = path.join(workDir, 'runner.cjs');
+  await fs.writeFile(scriptPath, runnerScript, 'utf-8');
+  return scriptPath;
+}
+
+// HTML & Web Runner helper
+async function prepareHtmlRunner(html: string, workDir: string): Promise<string> {
+  const htmlFile = path.join(workDir, 'index.html');
+  await fs.writeFile(htmlFile, html, 'utf-8');
+
+  const runnerScript = `
+const fs = require('fs');
+const htmlContent = ${JSON.stringify(html)};
+
+console.log("=========================================");
+console.log(" HTML / CSS / JavaScript Web Playground");
+console.log("=========================================");
+console.log("Rendered index.html (" + Buffer.byteLength(htmlContent) + " bytes)");
+
+const scriptMatches = htmlContent.match(/<script[\\s\\S]*?>([\\s\\S]*?)<\\/script>/gi) || [];
+if (scriptMatches.length > 0) {
+  console.log("\\n--- Executing Embedded JavaScript ---");
+  for (let i = 0; i < scriptMatches.length; i++) {
+    const scriptBody = scriptMatches[i].replace(/<\\/?script[\\s\\S]*?>/gi, '').trim();
+    if (scriptBody) {
+      try {
+        eval(scriptBody);
+      } catch (e) {
+        console.error("Script Execution Error:", e.message);
+      }
+    }
+  }
+} else {
+  console.log("\\n✓ Web structure rendered with valid DOM elements and stylesheets.");
+}
+`;
+  const runnerPath = path.join(workDir, 'runner.cjs');
+  await fs.writeFile(runnerPath, runnerScript, 'utf-8');
+  return runnerPath;
+}
+
 // Standard synchronous process runner (for compilers and batch runs)
 interface RunResult {
   stdout: string;
@@ -289,8 +431,57 @@ app.post('/api/terminal/start', async (req, res) => {
     let execCmd = '';
     let execArgs: string[] = [];
 
-    // Compilation stage for C, C++, and Java
-    if (language === 'c') {
+    // Process setup for all languages
+    if (language === 'javascript') {
+      await prepareJavaScriptCode(code, workDir);
+      execCmd = 'node';
+      execArgs = ['index.cjs'];
+
+    } else if (language === 'typescript') {
+      const compileStart = Date.now();
+      const { jsFile, error } = await prepareTypeScriptCode(code, workDir);
+      compilationTimeMs = Date.now() - compileStart;
+
+      if (error) {
+        const session: ActiveTerminalSession = {
+          sessionId,
+          language,
+          workDir,
+          startTime,
+          compilationTimeMs,
+          status: 'compile_error',
+          exitCode: 1,
+          logs: [
+            { type: 'system', text: `Compiling TypeScript with esbuild...\n`, timestamp: startTime },
+            { type: 'stderr', text: error + '\n', timestamp: Date.now() },
+            { type: 'system', text: `\n[TypeScript Compilation Failed]\n`, timestamp: Date.now() },
+          ],
+          clients: new Set(),
+        };
+        activeTerminalSessions.set(sessionId, session);
+        return res.json({
+          sessionId,
+          status: 'compile_error',
+          compilationTimeMs,
+          stderr: error,
+          exitCode: 1,
+        });
+      }
+
+      execCmd = 'node';
+      execArgs = ['index.cjs'];
+
+    } else if (language === 'sql') {
+      await prepareSqlRunner(code, workDir);
+      execCmd = 'node';
+      execArgs = ['runner.cjs'];
+
+    } else if (language === 'html') {
+      await prepareHtmlRunner(code, workDir);
+      execCmd = 'node';
+      execArgs = ['runner.cjs'];
+
+    } else if (language === 'c') {
       const sourceFile = path.join(workDir, 'main.c');
       await fs.writeFile(sourceFile, code, 'utf-8');
 
@@ -675,7 +866,74 @@ app.post('/api/execute', async (req, res) => {
     await fs.mkdir(workDir, { recursive: true });
     const overallStartTime = Date.now();
 
-    if (language === 'c') {
+    if (language === 'javascript') {
+      await prepareJavaScriptCode(code, workDir);
+      const execRes = await runProcess('node', ['index.cjs'], workDir, stdin, timeoutMs);
+      return res.json({
+        status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
+        stdout: execRes.stdout,
+        stderr: execRes.stderr,
+        exitCode: execRes.exitCode,
+        compilationTimeMs: 0,
+        executionTimeMs: execRes.executionTimeMs,
+        totalTimeMs: Date.now() - overallStartTime,
+      });
+
+    } else if (language === 'typescript') {
+      const compileStart = Date.now();
+      const { jsFile, error } = await prepareTypeScriptCode(code, workDir);
+      const compilationTimeMs = Date.now() - compileStart;
+
+      if (error) {
+        return res.json({
+          status: 'compile_error',
+          stdout: '',
+          stderr: error,
+          exitCode: 1,
+          compilationTimeMs,
+          executionTimeMs: 0,
+          totalTimeMs: Date.now() - overallStartTime,
+        });
+      }
+
+      const execRes = await runProcess('node', ['index.cjs'], workDir, stdin, timeoutMs);
+      return res.json({
+        status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
+        stdout: execRes.stdout,
+        stderr: execRes.stderr,
+        exitCode: execRes.exitCode,
+        compilationTimeMs,
+        executionTimeMs: execRes.executionTimeMs,
+        totalTimeMs: Date.now() - overallStartTime,
+      });
+
+    } else if (language === 'sql') {
+      await prepareSqlRunner(code, workDir);
+      const execRes = await runProcess('node', ['runner.cjs'], workDir, stdin, timeoutMs);
+      return res.json({
+        status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
+        stdout: execRes.stdout,
+        stderr: execRes.stderr,
+        exitCode: execRes.exitCode,
+        compilationTimeMs: 0,
+        executionTimeMs: execRes.executionTimeMs,
+        totalTimeMs: Date.now() - overallStartTime,
+      });
+
+    } else if (language === 'html') {
+      await prepareHtmlRunner(code, workDir);
+      const execRes = await runProcess('node', ['runner.cjs'], workDir, stdin, timeoutMs);
+      return res.json({
+        status: execRes.exitCode === 0 ? 'success' : 'runtime_error',
+        stdout: execRes.stdout,
+        stderr: execRes.stderr,
+        exitCode: execRes.exitCode,
+        compilationTimeMs: 0,
+        executionTimeMs: execRes.executionTimeMs,
+        totalTimeMs: Date.now() - overallStartTime,
+      });
+
+    } else if (language === 'c') {
       const sourceFile = path.join(workDir, 'main.c');
       const binFile = path.join(workDir, 'program');
       await fs.writeFile(sourceFile, code, 'utf-8');

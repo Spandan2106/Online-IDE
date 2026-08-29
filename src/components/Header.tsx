@@ -94,10 +94,10 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center: Language Selector Pills */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 max-w-full overflow-hidden">
           <div
             id="language-selector"
-            className={`flex items-center p-0.5 sm:p-1 rounded-lg border ${
+            className={`flex items-center p-0.5 sm:p-1 rounded-lg border overflow-x-auto no-scrollbar max-w-[280px] sm:max-w-[460px] md:max-w-[560px] lg:max-w-none ${
               isDark ? 'bg-[#0B0F19] border-[#2A3447]' : 'bg-slate-100 border-slate-200'
             }`}
           >
@@ -110,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
                   key={langKey}
                   id={`lang-btn-${langKey}`}
                   onClick={() => onSelectLanguage(langKey)}
-                  className={`relative px-2 sm:px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-all duration-150 ${
+                  className={`relative px-2 sm:px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 shrink-0 transition-all duration-150 ${
                     isSelected
                       ? isDark
                         ? 'bg-[#1E293B] text-sky-400 border border-[#334155] shadow-xs'
@@ -119,11 +119,14 @@ export const Header: React.FC<HeaderProps> = ({
                       ? 'text-slate-400 hover:text-slate-200 hover:bg-[#1E293B]/60'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
-                  title={`Switch to ${config.name} (${config.compiler})`}
+                  title={`${config.name} (${config.compiler}) - ${config.isZeroSetup ? '⚡ Zero Setup / Native' : '🛠️ Compiled'}`}
                 >
+                  {config.isZeroSetup && (
+                    <span className="text-[10px] text-amber-400 font-bold" title="Zero setup needed">⚡</span>
+                  )}
                   <span>{config.name}</span>
                   <span
-                    className={`hidden sm:inline text-[10px] font-mono ${
+                    className={`hidden md:inline text-[10px] font-mono ${
                       isSelected ? (isDark ? 'text-sky-300' : 'text-sky-600') : 'text-slate-500'
                     }`}
                   >
